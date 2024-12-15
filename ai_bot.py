@@ -1,9 +1,22 @@
 from openai import OpenAI
+import google.generativeai as genai
+import os
 
 client = OpenAI(
-    base_url="http://localhost:11434/v1",
-    api_key="ollama"
+    base_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent",
+    api_key="AIzaSyDXUaSNm0KfTuEDjNGFgysbdgocDsIbZc8"
 )
+
+genai.configure(api_key=os.environ["AIzaSyDXUaSNm0KfTuEDjNGFgysbdgocDsIbZc8"])
+
+# Create the model
+generation_config = {
+  "temperature": 1,
+  "top_p": 0.95,
+  "top_k": 40,
+  "max_output_tokens": 8192,
+  "response_mime_type": "text/plain",
+}
 
 GIRLFRIEND_PROMPT = """
 You are my cute girlfriend/assistant. You call me 'anh yêu' and call yourself 'em'
@@ -27,7 +40,10 @@ while True:
         "content":user_input
     })
     response = client.chat.completions.create(
-        model="gemma2:9b",
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash-exp",
+            generation_config=generation_config,
+),
         stream=True,
         messages=input_messages
     )
