@@ -4,10 +4,10 @@ import os
 
 client = OpenAI(
     base_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent",
-    api_key="AIzaSyDXUaSNm0KfTuEDjNGFgysbdgocDsIbZc8"
+    api_key=""
 )
 
-genai.configure(api_key=os.environ["AIzaSyDXUaSNm0KfTuEDjNGFgysbdgocDsIbZc8"])
+genai.configure(api_key=os.environ[""])
 
 # Create the model
 generation_config = {
