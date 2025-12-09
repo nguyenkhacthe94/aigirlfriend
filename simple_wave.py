@@ -1,82 +1,114 @@
 import asyncio
 import websockets
 import time
+import math
 from vts_client import vts_get_token, vts_authenticate, vts_inject_parameters, VTS_URL
 
-async def simple_wave():
-    print("Connecting to VTube Studio...")
-    async with websockets.connect(VTS_URL) as ws:
-        token = await vts_get_token(ws)
-        await vts_authenticate(ws, token)
-        print("Connected and authenticated.")
+# --- Expression Functions ---
 
-        # 1. Smile (Happy expression)
-        print("Smiling...")
-        smile_params = {
-            "FaceAngleX": 0.0,
-            "MouthOpen": 0.0,     # Closed mouth smile often looks better, or slight open
-            "MouthForm": 1.0,     # Smile shape if supported
-            "EyeOpenLeft": 0.8,
-            "EyeOpenRight": 0.8,
-            "CheekPuff": 0.0,
-            "FaceAngry": 0.0,
-            "FaceHappy": 1.0      # Some models use this
-        }
-        # Inject happy parameters
-        await vts_inject_parameters(ws, smile_params)
-        
-        # 2. Wave (Simulated)
-        # Since "Wave" isn't a standard parameter for all models, we'll try a few common ones
-        # and also do a friendly head bob/sway.
-        print("Waving...")
-        
-        # We'll oscillate some parameters to simulate movement
-        start_time = time.time()
-        while time.time() - start_time < 3.0: # Wave for 3 seconds
-            t = time.time() * 5 # Speed of wave
-            
-            # Try to move arm if parameters exist (common standard names)
-            # Values usually 0 to 1 or -1 to 1
-            arm_val = (time.sin(t) + 1) / 2 
-            
-            wave_params = {
-                "ParamArmL": arm_val, 
-                "ParamHandL": arm_val,
-                "FaceAngleZ": time.sin(t) * 5.0, # Head tilt sway
-                "BodyAngleZ": time.sin(t) * 2.0  # Body sway
-            }
-            
-            # Merge with smile params to keep smiling
-            current_params = {**smile_params, **wave_params}
-            
-            await vts_inject_parameters(ws, current_params)
-            await asyncio.sleep(0.05) # 20fps update
+async def smile(ws):
+    """Make the model smile."""
+    print("Expression: Smile")
+    params = {
+        "FaceAngleX": 0.0,
+        "MouthOpen": 0.0,
+        "MouthForm": 1.0,
+        "EyeOpenLeft": 0.8,
+        "EyeOpenRight": 0.8,
+        "CheekPuff": 0.0,
+        "FaceAngry": 0.0,
+        "FaceHappy": 1.0
+    }
+    await vts_inject_parameters(ws, params)
 
-        # 3. Blink
-        await blink(ws)
-        await asyncio.sleep(0.5)
-        await blink(ws)
+async def laugh(ws):
+    """Make the model laugh."""
+    print("Expression: Laugh")
+    # Laughing usually involves open mouth, happy eyes, maybe some movement
+    params = {
+        "MouthOpen": 1.0,
+        "MouthForm": 1.0,
+        "EyeOpenLeft": 0.0, # Happy squint
+        "EyeOpenRight": 0.0,
+        "FaceHappy": 1.0,
+        "BodyAngleZ": 5.0   # Slight lean
+    }
+    await vts_inject_parameters(ws, params)
+    
+    # Optional: Add a little bounce for laughter
+    for _ in range(3):
+        await vts_inject_parameters(ws, {"BodyAngleY": 2.0})
+        await asyncio.sleep(0.1)
+        await vts_inject_parameters(ws, {"BodyAngleY": -2.0})
+        await asyncio.sleep(0.1)
+    await vts_inject_parameters(ws, {"BodyAngleY": 0.0})
 
-        print("Done.")
+async def angry(ws):
+    """Make the model look angry."""
+    print("Expression: Angry")
+    params = {
+        "FaceAngry": 1.0,
+        "FaceHappy": 0.0,
+        "MouthForm": -1.0, # Frown
+        "EyeOpenLeft": 0.8,
+        "EyeOpenRight": 0.8,
+        "Brows": -1.0      # Furrowed brows (if supported, often mapped to FaceAngry)
+    }
+    await vts_inject_parameters(ws, params)
 
 async def blink(ws):
     """Make the model blink once."""
-    print("Blinking...")
+    print("Expression: Blink")
     # Close eyes
     await vts_inject_parameters(ws, {"EyeOpenLeft": 0.0, "EyeOpenRight": 0.0})
     await asyncio.sleep(0.15)
     # Open eyes
     await vts_inject_parameters(ws, {"EyeOpenLeft": 1.0, "EyeOpenRight": 1.0})
 
-if __name__ == "__main__":
-    # Need to import math for sin
-    import math
-    # Monkey patch time.sin for the loop above (oops, better just fix the code)
-    time.sin = math.sin
-    
+# --- Main Control Loop ---
+
+async def interactive_control():
+    print("Connecting to VTube Studio...")
     try:
-        asyncio.run(simple_wave())
+        async with websockets.connect(VTS_URL) as ws:
+            token = await vts_get_token(ws)
+            await vts_authenticate(ws, token)
+            print("Connected and authenticated.")
+            print("Commands: blink, smile, laugh, angry, quit")
+
+            # We need to run the input loop in a way that doesn't block the event loop entirely if we wanted background tasks,
+            # but for this simple request, we can just use a blocking input in a separate thread or just block since we react to commands.
+            # However, `input()` is blocking. To keep it simple and safe within async, we'll use run_in_executor.
+            
+            loop = asyncio.get_running_loop()
+
+            while True:
+                # Run input() in a separate thread so it doesn't block the async loop (good practice)
+                cmd = await loop.run_in_executor(None, input, "Enter command: ")
+                cmd = cmd.strip().lower()
+
+                if cmd == "quit":
+                    print("Exiting...")
+                    break
+                elif cmd == "blink":
+                    await blink(ws)
+                elif cmd == "smile":
+                    await smile(ws)
+                elif cmd == "laugh":
+                    await laugh(ws)
+                elif cmd == "angry":
+                    await angry(ws)
+                else:
+                    print(f"Unknown command: {cmd}")
+
+    except ConnectionRefusedError:
+        print("Could not connect to VTube Studio. Is it running and the API enabled?")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(interactive_control())
     except KeyboardInterrupt:
         print("\nExiting...")
-    except Exception as e:
-        print(f"Error: {e}")
+
