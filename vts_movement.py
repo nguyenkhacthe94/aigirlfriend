@@ -1,8 +1,7 @@
 import asyncio
 import websockets
-import time
-import math
 from vts_client import vts_get_token, vts_authenticate, vts_inject_parameters, VTS_URL
+
 
 # --- Expression Functions ---
 
