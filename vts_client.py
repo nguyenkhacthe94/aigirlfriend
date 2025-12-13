@@ -77,6 +77,17 @@ async def vts_inject_parameters(ws, params: dict, face_found: bool = True) -> No
     }
     await vts_send(ws, msg)
 
+async def vts_request_input_parameter_list(ws) -> dict:
+    """Request the list of available input parameters."""
+    msg = {
+        "apiName": "VTubeStudioPublicAPI",
+        "apiVersion": "1.0",
+        "requestID": "param-list-1",
+        "messageType": "InputParameterListRequest"
+    }
+    resp = await vts_send(ws, msg)
+    return resp["data"]
+
 async def vts_test_movement():
     """Connect to VTS, authenticate, and send a simple test movement."""
     async with websockets.connect(VTS_URL) as ws:
