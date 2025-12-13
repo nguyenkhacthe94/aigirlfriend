@@ -6,9 +6,6 @@ from typing import Any, Dict, Optional
 
 import aisuite as ai
 
-# Add project root to path for imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
 from model_control.vts_expressions import (
     agree,
     angry,
@@ -27,7 +24,7 @@ from model_control.vts_expressions import (
 DEFAULT_PROVIDER = "ollama"
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
 DEFAULT_TIMEOUT = 30
-DEFAULT_TEMPERATURE = 0.0  # For consistent JSON output
+DEFAULT_TEMPERATURE = 0.75
 
 # Expression functions for aisuite function calling
 EXPRESSION_TOOLS = [
