@@ -1,0 +1,101 @@
+# VTube Studio Input Parameters
+
+Generated from `request_all_tracking_parameter`.
+
+## Custom Parameters
+
+| Name | Min | Max | Default |
+| :--- | :--- | :--- | :--- |
+
+## Default Parameters
+
+| Name | Min | Max | Default |
+| :--- | :--- | :--- | :--- |
+| FacePositionX | -15.0 | 15.0 | 0.0 |
+| FacePositionY | -15.0 | 15.0 | 0.0 |
+| FacePositionZ | -10.0 | 10.0 | 0.0 |
+| FaceAngleX | -30.0 | 30.0 | 0.0 |
+| FaceAngleY | -30.0 | 30.0 | 0.0 |
+| FaceAngleZ | -90.0 | 90.0 | 0.0 |
+| MouthSmile | 0.0 | 1.0 | 0.0 |
+| MouthOpen | 0.0 | 1.0 | 0.0 |
+| Brows | 0.0 | 1.0 | 0.0 |
+| TongueOut | 0.0 | 1.0 | 0.0 |
+| CheekPuff | 0.0 | 1.0 | 0.0 |
+| FaceAngry | 0.0 | 1.0 | 0.0 |
+| BrowLeftY | 0.0 | 1.0 | 0.0 |
+| BrowRightY | 0.0 | 1.0 | 0.0 |
+| EyeOpenLeft | 0.0 | 1.0 | 0.0 |
+| EyeOpenRight | 0.0 | 1.0 | 0.0 |
+| EyeLeftX | -1.0 | 1.0 | 0.0 |
+| EyeLeftY | -1.0 | 1.0 | 0.0 |
+| EyeRightX | -1.0 | 1.0 | 0.0 |
+| EyeRightY | -1.0 | 1.0 | 0.0 |
+| MousePositionX | -1.0 | 1.0 | 0.0 |
+| MousePositionY | -1.0 | 1.0 | 0.0 |
+| VoiceVolume | 0.0 | 1.0 | 0.0 |
+| VoiceFrequency | 0.0 | 1.0 | 0.0 |
+| VoiceVolumePlusMouthOpen | 0.0 | 1.0 | 0.0 |
+| VoiceFrequencyPlusMouthSmile | 0.0 | 1.0 | 0.0 |
+| VoiceA | 0.0 | 1.0 | 0.0 |
+| VoiceI | 0.0 | 1.0 | 0.0 |
+| VoiceU | 0.0 | 1.0 | 0.0 |
+| VoiceE | 0.0 | 1.0 | 0.0 |
+| VoiceO | 0.0 | 1.0 | 0.0 |
+| VoiceSilence | 0.0 | 1.0 | 0.0 |
+| MouthX | -1.0 | 1.0 | 0.0 |
+| HandLeftFound | 0.0 | 1.0 | 0.0 |
+| HandRightFound | 0.0 | 1.0 | 0.0 |
+| BothHandsFound | 0.0 | 1.0 | 0.0 |
+| HandDistance | 0.0 | 10.0 | 0.0 |
+| HandLeftPositionX | 0.0 | 10.0 | 0.0 |
+| HandLeftPositionY | -10.0 | 10.0 | 0.0 |
+| HandLeftPositionZ | -10.0 | 10.0 | 0.0 |
+| HandRightPositionX | 0.0 | 10.0 | 0.0 |
+| HandRightPositionY | -10.0 | 10.0 | 0.0 |
+| HandRightPositionZ | -10.0 | 10.0 | 0.0 |
+| HandLeftAngleX | -180.0 | 180.0 | 0.0 |
+| HandLeftAngleZ | -180.0 | 180.0 | 0.0 |
+| HandRightAngleX | -180.0 | 180.0 | 0.0 |
+| HandRightAngleZ | -180.0 | 180.0 | 0.0 |
+| HandLeftOpen | 0.0 | 1.0 | 0.0 |
+| HandRightOpen | 0.0 | 1.0 | 0.0 |
+| HandLeftFinger_1_Thumb | 0.0 | 1.0 | 0.0 |
+| HandLeftFinger_2_Index | 0.0 | 1.0 | 0.0 |
+| HandLeftFinger_3_Middle | 0.0 | 1.0 | 0.0 |
+| HandLeftFinger_4_Ring | 0.0 | 1.0 | 0.0 |
+| HandLeftFinger_5_Pinky | 0.0 | 1.0 | 0.0 |
+| HandRightFinger_1_Thumb | 0.0 | 1.0 | 0.0 |
+| HandRightFinger_2_Index | 0.0 | 1.0 | 0.0 |
+| HandRightFinger_3_Middle | 0.0 | 1.0 | 0.0 |
+| HandRightFinger_4_Ring | 0.0 | 1.0 | 0.0 |
+| HandRightFinger_5_Pinky | 0.0 | 1.0 | 0.0 |
+| MocopiConnected | 0.0 | 1.0 | 0.0 |
+| MocopiHipAngleZ | -30.0 | 30.0 | 0.0 |
+| MocopiAngleX | -30.0 | 30.0 | 0.0 |
+| MocopiAngleY | -30.0 | 30.0 | 0.0 |
+| MocopiAngleZ | -30.0 | 30.0 | 0.0 |
+| MocopiBodyAngleX | -10.0 | 10.0 | 0.0 |
+| MocopiBodyAngleY | -10.0 | 10.0 | 0.0 |
+| MocopiBodyAngleZ | -10.0 | 10.0 | 0.0 |
+| MocopiBodyPositionX | -1.0 | 1.0 | 0.0 |
+| MocopiBodyPositionY | -1.0 | 1.0 | 0.0 |
+| MocopiBodyPositionZ | -1.0 | 1.0 | 0.0 |
+| MocopiUpperArmLeftAngleY | -90.0 | 90.0 | 0.0 |
+| MocopiUpperArmLeftAngleZ | -180.0 | 180.0 | 0.0 |
+| MocopiUpperArmRightAngleY | -90.0 | 90.0 | 0.0 |
+| MocopiUpperArmRightAngleZ | -180.0 | 180.0 | 0.0 |
+| MocopiLowerArmLeftAngleX | -180.0 | 180.0 | 0.0 |
+| MocopiLowerArmLeftAngleY | -90.0 | 90.0 | 0.0 |
+| MocopiLowerArmLeftAngleZ | -180.0 | 180.0 | 0.0 |
+| MocopiLowerArmRightAngleX | -180.0 | 180.0 | 0.0 |
+| MocopiLowerArmRightAngleY | -90.0 | 90.0 | 0.0 |
+| MocopiLowerArmRightAngleZ | -180.0 | 180.0 | 0.0 |
+| MocopiUpperLegLeftAngleY | -30.0 | 30.0 | 0.0 |
+| MocopiUpperLegLeftAngleZ | -30.0 | 30.0 | 0.0 |
+| MocopiUpperLegRightAngleY | -30.0 | 30.0 | 0.0 |
+| MocopiUpperLegRightAngleZ | -30.0 | 30.0 | 0.0 |
+| MocopiLowerLegLeftAngleY | -30.0 | 30.0 | 0.0 |
+| MocopiLowerLegLeftAngleZ | -30.0 | 30.0 | 0.0 |
+| MocopiLowerLegRightAngleY | -30.0 | 30.0 | 0.0 |
+| MocopiLowerLegRightAngleZ | -30.0 | 30.0 | 0.0 |
