@@ -15,7 +15,7 @@ This project connects an AI language model with VTube Studio to create an emotio
 - `model_control/vts_expressions.py` - Expression functions called directly by LLM
 - `prompts/system.md` - Single unified system prompt for AI personality and expression guidance
 - `main.py` - Main orchestration loop
-- `scripts/` - Development-only debugging, helper, and sanity test scripts (never use in production)
+- `scripts/` - Development-only debugging, helper, and test scripts (never use in production)
 <!-- PROJECT_OVERVIEW:END -->
 
 <!-- BUILD_TEST:START -->
@@ -27,16 +27,16 @@ This project connects an AI language model with VTube Studio to create an emotio
 python main.py
 
 # Test expression function integration
-python scripts/test_expression_integration.py
+python scripts/test/test_expression_integration.py
 
 # Test unified system prompt
-python scripts/test_system_prompt.py
+python scripts/test/test_system_prompt.py
 
 # Test function calling integration
-python scripts/test_function_calling.py
+python scripts/test/test_function_calling.py
 
 # Comprehensive validation
-python scripts/test_comprehensive_validation.py
+python scripts/test/test_comprehensive_validation.py
 
 # No formal test suite - manual testing preferred for real-time interactivity
 ```
@@ -169,7 +169,7 @@ async def set_params(ws, params): ...
 - **Fast iteration** over test coverage
 - Test in VTube Studio with actual avatar
 - Verify <500ms latency for emotion detection
-- **All debugging, helper, and sanity test scripts must be placed in the `scripts/` folder**
+- **All debugging, helper, and sanity test scripts must be placed in the `scripts/test` folder**
 - **Scripts in the `scripts/` folder are development-only and should never be used in production**
 <!-- ARCHITECTURE:END -->
 
@@ -355,7 +355,7 @@ if __name__ == "__main__":
     asyncio.run(vts_test_movement())
 ```
 
-**Note:** Save this test code as `scripts/test_vts_connection.py` for development testing only.
+**Note:** Save this test code as `scripts/test/test_vts_connection.py` for development testing only.
 
 #### Testing VTS Connection
 
@@ -364,12 +364,10 @@ if __name__ == "__main__":
    - Enable plugin/API support
    - Confirm WebSocket port (default: 8001)
    - Ensure parameters like `FaceAngleX` and `MouthOpen` are mapped
-3. Run: `python scripts/test_vts_connection.py`
+3. Run: `python scripts/test/test_vts_connection.py`
 4. On first run, approve the plugin authorization popup in VTS
 5. Verify console output: "Test movement sent to VTS."
 6. Confirm model shows head tilt and mouth movement
-
-### LLM Client Implementation (`llm_client.py`)
 
 #### Environment & Imports
 
@@ -384,80 +382,6 @@ LLM_URL = "http://localhost:11434/api/generate"  # adjust to your setup
 LLM_MODEL_NAME = "llama3"                        # adjust to your installed model
 ```
 
-#### Prompting Strategy
-
-```python
-def build_emotion_prompt(text: str) -> str:
-    """Return a prompt asking the LLM to classify emotion for the given text."""
-    return f"""
-You are an emotion classifier for a VTuber avatar.
-
-For the given text, output ONLY valid JSON with fields:
-
-* "emotion": one of ["neutral","happy","sad","angry","surprised"]
-* "intensity": a number from 0.0 to 1.0
-
-Text: "{text}"
-"""
-```
-
-#### Core Functions
-
-**1. Query LLM:**
-
-```python
-def call_llm(prompt: str) -> str:
-    """
-    Send a prompt to the local LLaMA HTTP server and return its raw text response.
-
-    Adjust the payload/keys to match the actual server.
-    """
-    payload = {
-        "model": LLM_MODEL_NAME,
-        "prompt": prompt,
-        "stream": False
-    }
-    resp = requests.post(LLM_URL, json=payload, timeout=60)
-    resp.raise_for_status()
-    data = resp.json()
-    return data.get("response", "").strip()
-```
-
-**2. Extract JSON from response:**
-
-```python
-def extract_json_from_text(raw: str) -> dict:
-    """
-    Extract the first JSON object from a text string and parse it.
-    Assumes there is a '{ ... }' somewhere in the text.
-    """
-    start = raw.find("{")
-    end = raw.rfind("}")
-    if start == -1 or end == -1 or end < start:
-        raise ValueError("No JSON object found in LLM response")
-    json_str = raw[start:end+1]
-    return json.loads(json_str)
-```
-
-**3. Get emotion for text:**
-
-```python
-def get_emotion_for_text(text: str) -> dict:
-    """
-    Return a dict like: {"emotion": "happy", "intensity": 0.8}
-    """
-    prompt = build_emotion_prompt(text)
-    raw_response = call_llm(prompt)
-    data = extract_json_from_text(raw_response)
-
-    # Add simple defaults/normalization
-    emotion = data.get("emotion", "neutral")
-    intensity = float(data.get("intensity", 0.5))
-    intensity = max(0.0, min(1.0, intensity))
-
-    return {"emotion": emotion, "intensity": intensity}
-```
-
 #### Testing LLM Connection
 
 ```python
@@ -468,9 +392,9 @@ if __name__ == "__main__":
     print("LLM emotion result:", result)
 ```
 
-**Note:** Save this test code as `scripts/test_llm_emotion.py` for development testing only.
+**Note:** Save this test code as `scripts/test/test_llm_emotion.py` for development testing only.
 
-Run: `python scripts/test_llm_emotion.py`
+Run: `python scripts/test/test_llm_emotion.py`
 
 Expected output:
 
@@ -482,29 +406,6 @@ LLM emotion result: {'emotion': 'happy', 'intensity': 0.9}
 ### Prompt Management Guidelines
 
 **CRITICAL:** All LLM prompts MUST be stored in the `prompts/` folder as Markdown files.
-
-#### Prompt Template Example
-
-**prompts/emotion_system.md:**
-
-```markdown
-# Emotion Detection System Prompt
-
-You are a precise emotion classifier for a VTuber avatar system.
-
-## Response Requirements
-
-- Respond ONLY with valid JSON containing emotion and intensity fields
-- No additional text, explanations, or formatting
-
-## Available Emotions
-
-neutral, happy, sad, angry, surprised
-
-## Intensity Scale
-
-0.0-1.0 where 0.0 = neutral, 1.0 = maximum intensity
-```
 
 **Rules:**
 
