@@ -548,12 +548,22 @@ if __name__ == "__main__":
 ### Environment Variables
 
 ```bash
-# Required
-export LLM_API_KEY="your-api-key-here"
+# LLM Provider Configuration
+export LLM_PROVIDER="ollama"  # ollama (default), google, openai, anthropic
+export LLM_MODEL="llama3"     # provider-specific model name
 
-# Optional
-export VTS_URL="ws://localhost:8001"
-export LLM_MODEL="gpt-4"
+# Provider-Specific API Keys
+export GOOGLE_API_KEY="your-google-api-key"      # for Gemini
+export OPENAI_API_KEY="your-openai-api-key"      # for OpenAI
+export ANTHROPIC_API_KEY="your-anthropic-api-key" # for Anthropic
+
+# Optional Performance Tuning
+export OLLAMA_BASE_URL="http://localhost:11434"  # custom Ollama endpoint
+export LLM_TIMEOUT="30"                          # request timeout
+export LLM_TEMPERATURE="0.0"                     # for consistent JSON
+
+# VTube Studio
+export VTS_URL="ws://localhost:8001"             # VTS WebSocket URL
 ```
 
 ### Token Persistence
@@ -561,6 +571,12 @@ export LLM_MODEL="gpt-4"
 - VTS authentication token stored in `vts_token.txt`
 - First connection requires manual approval in VTube Studio
 - Token reused on subsequent runs
+- API keys only loaded from environment variables (never stored in files)
+
+### Provider Setup
+
+See [docs/LLM_CLIENT.md](docs/LLM_CLIENT.md) for detailed configuration instructions for each provider.
+
 <!-- SECURITY_CONFIG:END -->
 
 <!-- PERFORMANCE:START -->
