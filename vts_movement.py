@@ -14,9 +14,11 @@ async def smile(ws):
         "MouthForm": 1.0,
         "EyeOpenLeft": 0.8,
         "EyeOpenRight": 0.8,
-        "CheekPuff": 0.0,
+        "CheekPuff": 1.0,
         "FaceAngry": 0.0,
-        "FaceHappy": 1.0
+        "FaceHappy": 1.0,
+        "ParamEyeLSmile": 1.0,
+        "ParamEyeRSmile": 1.0   
     }
     await vts_inject_parameters(ws, params)
 
@@ -48,10 +50,10 @@ async def angry(ws):
     params = {
         "FaceAngry": 1.0,
         "FaceHappy": 0.0,
-        "MouthForm": -1.0, # Frown
-        "EyeOpenLeft": 0.8,
-        "EyeOpenRight": 0.8,
-        "Brows": -1.0      # Furrowed brows (if supported, often mapped to FaceAngry)
+        "MouthSmile": 0.0,
+        "EyeOpenLeft": 0.3,
+        "EyeOpenRight": 0.3,
+        "Brows": 0.0      # Furrowed brows (if supported, often mapped to FaceAngry)
     }
     await vts_inject_parameters(ws, params)
 
@@ -64,6 +66,42 @@ async def blink(ws):
     # Open eyes
     await vts_inject_parameters(ws, {"EyeOpenLeft": 1.0, "EyeOpenRight": 1.0})
 
+async def wow(ws):
+    print("Expression: Wow")
+    params = {
+        "MouthOpen": 1.0,
+        "MouthForm": 1.0,
+        "EyeOpenLeft": 0.0, # Happy squint
+        "EyeOpenRight": 0.0,
+        "FaceHappy": 1.0,
+        "BodyAngleZ": 5.0   # Slight lean
+    }
+    await vts_inject_parameters(ws, params)
+
+async def nod(ws):
+    print("Expression: Nod")
+    
+    await vts_inject_parameters(ws, {"FaceAngleY": 15.0})
+    await asyncio.sleep(0.2)
+    await vts_inject_parameters(ws, {"FaceAngleY": -15.0})
+    await asyncio.sleep(0.2)
+    await vts_inject_parameters(ws, {"FaceAngleY": 15.0})
+    await asyncio.sleep(0.2)
+    await vts_inject_parameters(ws, {"FaceAngleY": -15.0})
+    await asyncio.sleep(0.2)
+    await vts_inject_parameters(ws, {"FaceAngleY": 0.0})
+
+async def shake(ws):
+    print("Expression: Shake")
+    await vts_inject_parameters(ws, {"FaceAngleX": -15.0})
+    await asyncio.sleep(0.2)
+    await vts_inject_parameters(ws, {"FaceAngleX": 15.0})
+    await asyncio.sleep(0.2)
+    await vts_inject_parameters(ws, {"FaceAngleX": -15.0})
+    await asyncio.sleep(0.2)
+    await vts_inject_parameters(ws, {"FaceAngleX": 15.0})
+    await asyncio.sleep(0.2)
+    await vts_inject_parameters(ws, {"FaceAngleX": 0.0})
 # --- Main Control Loop ---
 
 async def interactive_control():
@@ -73,7 +111,7 @@ async def interactive_control():
             token = await vts_get_token(ws)
             await vts_authenticate(ws, token)
             print("Connected and authenticated.")
-            print("Commands: blink, smile, laugh, angry, quit")
+            print("Commands: blink, smile, laugh, angry, wow, nod, shake, quit")
 
             # We need to run the input loop in a way that doesn't block the event loop entirely if we wanted background tasks,
             # but for this simple request, we can just use a blocking input in a separate thread or just block since we react to commands.
@@ -97,6 +135,12 @@ async def interactive_control():
                     await laugh(ws)
                 elif cmd == "angry":
                     await angry(ws)
+                elif cmd == "wow":
+                    await wow(ws)
+                elif cmd == "nod":
+                    await nod(ws)
+                elif cmd == "shake":
+                    await shake(ws)
                 else:
                     print(f"Unknown command: {cmd}")
 
