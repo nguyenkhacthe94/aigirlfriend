@@ -21,10 +21,21 @@ PROVIDER_MODEL_DEFAULTS = {
 
 
 class LLMClient:
-    """Abstract LLM client providing unified interface for multiple AI providers."""
+    """
+    Abstract LLM client providing unified interface for multiple AI providers.
+
+    This class encapsulates provider configuration, validation, and communication
+    while maintaining backward compatibility with the existing emotion detection API.
+    """
 
     def __init__(self, provider: Optional[str] = None, model: Optional[str] = None):
-        """Initialize LLM client."""
+        """
+        Initialize LLM client with provider and model configuration.
+
+        Args:
+            provider: Provider name (ollama, google, openai, anthropic)
+            model: Model name (provider-specific)
+        """
         self._provider = provider or os.getenv("LLM_PROVIDER", DEFAULT_PROVIDER).lower()
         self._model = model or os.getenv(
             "LLM_MODEL", PROVIDER_MODEL_DEFAULTS.get(self._provider, "llama3")
@@ -40,8 +51,11 @@ class LLMClient:
 
         self._last_response_time: Optional[float] = None
         self._client: Optional[ai.Client] = None
+
+        # Project root for prompt loading
         self._project_root = os.path.dirname(os.path.abspath(__file__))
 
+        # Validate configuration on initialization
         self._validate_and_setup()
 
     def _load_prompt(self, prompt_name: str) -> str:
@@ -101,18 +115,32 @@ class LLMClient:
         return f"{self._provider}:{self._model}"
 
     def call_llm(self, user_prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Send prompts to the LLM and return the raw response. If system_prompt is not provided, load from prompts/ folder."""
+        """
+        Send prompts to the LLM and return the raw response.
+
+        Args:
+            user_prompt: The user message to send
+            system_prompt: Optional system prompt (provider-specific behavior)
+
+        Returns:
+            str: Raw response from the LLM
+
+        Raises:
+            Exception: If the LLM request fails
+        """
         if not self._client:
             raise RuntimeError("Client not initialized")
 
         start_time = time.time()
         try:
+            # Build messages with proper system/user structure
             messages = []
-            # load system prompt from prompt/ folder if not provided
-            if not system_prompt:
-                system_prompt = self._load_prompt("system")
 
-            messages.append({"role": "system", "content": system_prompt})
+            # Add system prompt if provided
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+
+            # Add user prompt
             messages.append({"role": "user", "content": user_prompt})
 
             response = self._client.chat.completions.create(
@@ -132,16 +160,35 @@ class LLMClient:
     def call_with_prompt_template(
         self, prompt_template_name: str, **template_vars
     ) -> str:
-        """Call LLM using prompt templates from prompts/ folder."""
+        """
+        Call LLM using prompt templates from prompts/ folder.
+
+        Args:
+            prompt_template_name: Base name of prompt files (e.g. 'emotion' for emotion_system.md and emotion_user.md)
+            **template_vars: Variables to substitute in user prompt template
+
+        Returns:
+            str: Raw response from the LLM
+        """
+        # Load system prompt
+        system_prompt = self._load_prompt(f"{prompt_template_name}_system")
+
         # Load and format user prompt
-        user_prompt_template = self._load_prompt(f"{prompt_template_name}")
-        system_prompt = self._load_prompt("system")
+        user_prompt_template = self._load_prompt(f"{prompt_template_name}_user")
         user_prompt = user_prompt_template.format(**template_vars)
 
         return self.call_llm(user_prompt, system_prompt)
 
     def get_emotion_for_text(self, text: str) -> dict:
-        """Analyze text and return emotion classification using prompt templates."""
+        """
+        Analyze text and return emotion classification using prompt templates.
+
+        Args:
+            text: Input text to analyze
+
+        Returns:
+            dict: {"emotion": "happy", "intensity": 0.8}
+        """
         raw_response = self.call_with_prompt_template("emotion", text=text)
         return self._extract_json_from_text(raw_response)
 
@@ -187,3 +234,157 @@ class LLMClient:
         if self._last_response_time is None:
             return True
         return self._last_response_time < 0.5
+
+
+# Global client instance for backward compatibility
+_global_client: Optional[LLMClient] = None
+
+
+def _get_global_client() -> LLMClient:
+    """Get or create global LLM client instance."""
+    global _global_client
+    if _global_client is None:
+        _global_client = LLMClient()
+    return _global_client
+
+
+def extract_json_from_text(raw: str) -> dict:
+    """Extract JSON from LLM response (backward compatibility)."""
+    return _get_global_client()._extract_json_from_text(raw)
+
+
+def validate_provider_config(provider: Optional[str] = None) -> bool:
+    """Validate provider configuration (backward compatibility)."""
+    if provider:
+        client = LLMClient(provider=provider)
+        return client._validate_provider_config()
+    return _get_global_client()._validate_provider_config()
+
+
+def get_provider_validation_error(provider: Optional[str] = None) -> str:
+    """Get provider validation error message (backward compatibility)."""
+    if provider:
+        client = LLMClient(provider=provider)
+        return client._get_provider_validation_error()
+    return _get_global_client()._get_provider_validation_error()
+
+
+def get_model_string(
+    provider: Optional[str] = None, model: Optional[str] = None
+) -> str:
+    """Get model string for provider (backward compatibility)."""
+    if provider or model:
+        client = LLMClient(provider=provider, model=model)
+        return client._get_model_string()
+    return _get_global_client()._get_model_string()
+
+
+def call_llm(
+    prompt: Optional[str] = None,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    user_prompt: Optional[str] = None,
+    system_prompt: Optional[str] = None,
+) -> str:
+    """
+    Send prompt to LLM (backward compatibility and new interface).
+
+    Args:
+        prompt: Legacy single prompt parameter (backward compatibility)
+        provider: Optional provider override
+        model: Optional model override
+        user_prompt: New user prompt parameter (preferred)
+        system_prompt: Optional system prompt parameter
+
+    Returns:
+        str: Raw response from the LLM
+
+    Raises:
+        ValueError: If both prompt and user_prompt are provided, or neither is provided
+    """
+    # Validate parameters
+    if prompt and user_prompt:
+        raise ValueError(
+            "Cannot specify both 'prompt' and 'user_prompt'. Use 'user_prompt' for new code."
+        )
+    if not prompt and not user_prompt:
+        raise ValueError(
+            "Must specify either 'prompt' (legacy) or 'user_prompt' (preferred)."
+        )
+
+    # Create client
+    if provider or model:
+        client = LLMClient(provider=provider, model=model)
+    else:
+        client = _get_global_client()
+
+    # Call with appropriate parameters
+    if user_prompt:
+        # New interface
+        return client.call_llm(user_prompt, system_prompt)
+    else:
+        # Legacy interface - use prompt as user_prompt, no system prompt
+        assert prompt is not None  # Already validated above
+        return client.call_llm(prompt)
+
+
+def get_emotion_for_text(text: str) -> dict:
+    """Get emotion for text (backward compatibility)."""
+    return _get_global_client().get_emotion_for_text(text)
+
+
+def get_current_provider() -> str:
+    """Get current provider name (backward compatibility)."""
+    return _get_global_client().provider
+
+
+def is_provider_available(provider: str) -> bool:
+    """Check if provider is available (backward compatibility)."""
+    try:
+        client = LLMClient(provider=provider)
+        return client._validate_provider_config()
+    except Exception:
+        return False
+
+
+def validate_configuration() -> bool:
+    """Validate current configuration (backward compatibility)."""
+    try:
+        client = _get_global_client()
+        return True
+    except ValueError:
+        return False
+
+
+def get_supported_providers() -> list[str]:
+    """Get list of supported providers."""
+    return list(PROVIDER_MODEL_DEFAULTS.keys())
+
+
+def get_provider_models(provider: str) -> dict:
+    """Get available models for a provider."""
+    return {"default": PROVIDER_MODEL_DEFAULTS.get(provider, "unknown")}
+
+
+# Test function
+if __name__ == "__main__":
+    sample_text = "Wow, that's amazing news!"
+    try:
+        # Validate configuration first
+        if not validate_configuration():
+            provider = os.getenv("LLM_PROVIDER", DEFAULT_PROVIDER)
+            print(f"Configuration error: {get_provider_validation_error(provider)}")
+            exit(1)
+
+        client = _get_global_client()
+        print(f"Using provider: {client.provider}")
+        print(f"Model: {client._get_model_string()}")
+
+        result = get_emotion_for_text(sample_text)
+        print("Input text:", sample_text)
+        print("LLM emotion result:", result)
+        print(f"Response time: {client.last_response_time:.3f}s")
+        print(f"Performance OK: {client.is_performance_acceptable()}")
+
+    except Exception as e:
+        print(f"Error: {e}")

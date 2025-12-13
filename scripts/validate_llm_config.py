@@ -14,9 +14,7 @@ from llm_client import (
     DEFAULT_OLLAMA_URL,
     DEFAULT_PROVIDER,
     PROVIDER_MODEL_DEFAULTS,
-    get_provider_validation_error,
-    is_gemini_configured,
-    validate_provider_config,
+    LLMClient,
 )
 
 
@@ -101,14 +99,21 @@ def check_providers():
     available_providers = []
 
     for provider in providers:
-        is_valid = validate_provider_config(provider)
-        print_check(
-            f"{provider.capitalize()} Provider",
-            is_valid,
-            "Ready to use" if is_valid else get_provider_validation_error(provider),
-        )
-        if is_valid:
+        try:
+            # Try to create client to validate configuration
+            client = LLMClient(provider=provider)
+            print_check(
+                f"{provider.capitalize()} Provider",
+                True,
+                "Ready to use",
+            )
             available_providers.append(provider)
+        except Exception as e:
+            print_check(
+                f"{provider.capitalize()} Provider",
+                False,
+                str(e),
+            )
 
     print(
         f"\n{len(available_providers)} of {len(providers)} providers available: {', '.join(available_providers)}"
@@ -122,17 +127,20 @@ def check_current_configuration():
     print_header("Current Configuration")
 
     provider = os.getenv("LLM_PROVIDER", DEFAULT_PROVIDER)
-    is_valid = validate_provider_config(provider)
-
-    print_check(
-        f"Selected Provider ({provider})",
-        is_valid,
-        "Configuration valid" if is_valid else get_provider_validation_error(provider),
-    )
-
-    if is_valid:
-        model = os.getenv("LLM_MODEL", PROVIDER_MODEL_DEFAULTS.get(provider, "unknown"))
-        print(f"✓ Model: {model}")
+    try:
+        client = LLMClient()
+        print_check(
+            f"Selected Provider ({provider})",
+            True,
+            "Configuration valid",
+        )
+        print(f"✓ Model: {client.model}")
+    except Exception as e:
+        print_check(
+            f"Selected Provider ({provider})",
+            False,
+            str(e),
+        )
         print(f"✓ Ready for emotion detection")
 
     return is_valid

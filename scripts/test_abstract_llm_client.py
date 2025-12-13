@@ -11,19 +11,7 @@ import sys
 # Add project root to path so we can import llm_client
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from llm_client import (
-    LLMClient,
-    configure_gemini,
-    get_current_provider,
-    get_emotion_for_text,
-    get_gemini_model_recommendation,
-    get_model_string,
-    get_provider_validation_error,
-    is_gemini_configured,
-    is_provider_available,
-    validate_configuration,
-    validate_provider_config,
-)
+from llm_client import LLMClient
 
 
 def test_provider_validation():
@@ -33,10 +21,12 @@ def test_provider_validation():
     providers = ["ollama", "google", "openai", "anthropic"]
 
     for provider in providers:
-        is_valid = validate_provider_config(provider)
-        print(f"Provider {provider}: {'✓ Valid' if is_valid else '✗ Invalid'}")
-        if not is_valid:
-            print(f"  Error: {get_provider_validation_error(provider)}")
+        try:
+            client = LLMClient(provider=provider)
+            print(f"Provider {provider}: ✓ Valid")
+        except Exception as e:
+            print(f"Provider {provider}: ✗ Invalid")
+            print(f"  Error: {e}")
     print()
 
 
@@ -44,20 +34,14 @@ def test_configuration():
     """Test current configuration validation."""
     print("=== Testing Current Configuration ===")
 
-    provider = get_current_provider()
-    print(f"Current provider: {provider}")
-
     try:
-        model_string = get_model_string()
-        print(f"Model string: {model_string}")
+        client = LLMClient()
+        print(f"Current provider: {client.provider}")
+        print(f"Current model: {client.model}")
+        print("Configuration valid: ✓ Yes")
     except Exception as e:
-        print(f"Model string error: {e}")
-
-    is_valid = validate_configuration()
-    print(f"Configuration valid: {'✓ Yes' if is_valid else '✗ No'}")
-
-    if not is_valid:
-        print(f"Error: {get_provider_validation_error(provider)}")
+        print("Configuration valid: ✗ No")
+        print(f"Error: {e}")
     print()
 
 
@@ -73,13 +57,15 @@ def test_emotion_detection():
         "Just another normal day.",
     ]
 
-    if not validate_configuration():
-        print("❌ Cannot test emotion detection - configuration invalid")
+    try:
+        client = LLMClient()
+    except Exception as e:
+        print(f"❌ Cannot test emotion detection - configuration error: {e}")
         return
 
     for text in test_cases:
         try:
-            result = get_emotion_for_text(text)
+            result = client.get_emotion_for_text(text)
             print(f"Text: '{text}'")
             print(f"Result: {result}")
             print()
@@ -95,8 +81,11 @@ def test_provider_availability():
     providers = ["ollama", "google", "openai", "anthropic"]
 
     for provider in providers:
-        available = is_provider_available(provider)
-        print(f"Provider {provider}: {'✓ Available' if available else '✗ Unavailable'}")
+        try:
+            client = LLMClient(provider=provider)
+            print(f"Provider {provider}: ✓ Available")
+        except Exception as e:
+            print(f"Provider {provider}: ✗ Unavailable - {e}")
     print()
 
 
@@ -114,10 +103,12 @@ def test_llm_client_class():
             ollama_client = LLMClient(provider="ollama")
             print(f"Ollama client - Provider: {ollama_client.provider}")
 
-        if is_gemini_configured():
-            gemini_client = configure_gemini("flash")
+        # Test Google provider if configured
+        google_api_key = os.getenv("GOOGLE_API_KEY")
+        if google_api_key:
+            google_client = LLMClient(provider="google")
             print(
-                f"Gemini client - Provider: {gemini_client.provider}, Model: {gemini_client.model}"
+                f"Google client - Provider: {google_client.provider}, Model: {google_client.model}"
             )
 
     except Exception as e:
@@ -126,33 +117,9 @@ def test_llm_client_class():
     print()
 
 
-def test_gemini_features():
-    """Test Gemini-specific features."""
-    print("=== Testing Gemini Features ===")
-
-    print(f"Gemini configured: {'✓ Yes' if is_gemini_configured() else '✗ No'}")
-
-    # Test model recommendations
-    recommendations = {
-        0.2: get_gemini_model_recommendation(0.2),
-        0.4: get_gemini_model_recommendation(0.4),
-        0.8: get_gemini_model_recommendation(0.8),
-    }
-
-    print("Model recommendations by latency:")
-    for latency, model in recommendations.items():
-        print(f"  {latency}s max: {model}")
-
-    print()
-
-
 def test_performance():
     """Test performance monitoring."""
     print("=== Testing Performance Monitoring ===")
-
-    if not validate_configuration():
-        print("❌ Cannot test performance - configuration invalid")
-        return
 
     try:
         client = LLMClient()
@@ -171,22 +138,25 @@ def test_performance():
 
 
 def test_backward_compatibility():
-    """Test backward compatibility with existing code."""
-    print("=== Testing Backward Compatibility ===")
+    """Test that backward compatibility functions are removed."""
+    print("=== Testing Backward Compatibility Removal ===")
 
-    try:
-        # This should work exactly like the old API
-        result = get_emotion_for_text("Testing backward compatibility!")
-        print(f"✓ get_emotion_for_text() works: {result}")
+    # Test that old functions are no longer available
+    old_functions = [
+        "get_emotion_for_text",
+        "get_current_provider",
+        "validate_configuration",
+        "validate_provider_config",
+        "get_provider_validation_error",
+        "is_provider_available",
+        "get_model_string",
+    ]
 
-        provider = get_current_provider()
-        print(f"✓ get_current_provider() works: {provider}")
-
-        is_valid = validate_configuration()
-        print(f"✓ validate_configuration() works: {is_valid}")
-
-    except Exception as e:
-        print(f"❌ Backward compatibility error: {e}")
+    for func_name in old_functions:
+        if hasattr(LLMClient, func_name):
+            print(f"❌ {func_name} still exists as class method")
+        else:
+            print(f"✓ {func_name} correctly removed")
 
     print()
 
@@ -200,15 +170,15 @@ def main():
     test_configuration()
     test_provider_availability()
     test_llm_client_class()
-    test_gemini_features()
     test_backward_compatibility()
 
     # Only test actual LLM calls if configuration is valid
-    if validate_configuration():
+    try:
+        test_client = LLMClient()
         test_emotion_detection()
         test_performance()
-    else:
-        print("⚠️  Skipping LLM tests - no valid provider configured")
+    except Exception as e:
+        print(f"⚠️  Skipping LLM tests - configuration error: {e}")
 
     print("✅ Test suite completed")
 
