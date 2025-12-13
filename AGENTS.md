@@ -6,7 +6,7 @@ AI-powered VTuber controller that uses LLM emotion detection to drive Live2D ava
 
 ## Project Overview
 
-This project connects an AI language model with VTube Studio to create an emotion-responsive Live2D avatar. The system uses a unified LLM approach where conversational responses and facial expressions are generated simultaneously through aisuite function calling.
+This project connects an AI language model with VTube Studio to create an emotion-responsive Live2D avatar. The system uses a unified LLM approach where conversational responses and facial expressions are generated simultaneously through direct google-generativeai function calling.
 
 **Key Components:**
 
@@ -482,18 +482,14 @@ if __name__ == "__main__":
 
 ```bash
 # LLM Provider Configuration
-export LLM_PROVIDER="ollama"  # ollama (default), google, openai, anthropic
-export LLM_MODEL="llama3"     # provider-specific model name
+export LLM_MODEL="models/gemini-2.5-flash"  # Gemini model name
 
-# Provider-Specific API Keys
+# Google API Key (Required)
 export GOOGLE_API_KEY="your-google-api-key"      # for Gemini
-export OPENAI_API_KEY="your-openai-api-key"      # for OpenAI
-export ANTHROPIC_API_KEY="your-anthropic-api-key" # for Anthropic
 
 # Optional Performance Tuning
-export OLLAMA_BASE_URL="http://localhost:11434"  # custom Ollama endpoint
 export LLM_TIMEOUT="30"                          # request timeout
-export LLM_TEMPERATURE="0.0"                     # for consistent JSON
+export LLM_TEMPERATURE="0.75"                    # response creativity
 
 # VTube Studio
 export VTS_URL="ws://localhost:8001"             # VTS WebSocket URL
@@ -552,21 +548,6 @@ emotion_list = '["neutral","happy","sad","angry","surprised","excited"]'
 2. Add to emotion mapping with appropriate value
 3. Test with actual avatar to verify visual effect
 
-### Switching LLM Providers
-
-Modify `llm_client.py` configuration:
-
-```python
-# Using aisuite for multiple providers
-import aisuite as ai
-client = ai.Client()
-
-response = client.chat.completions.create(
-    model="openai:gpt-4",  # or "anthropic:claude-3-opus"
-    messages=[{"role": "user", "content": prompt}]
-)
-```
-
 <!-- COMMON_TASKS:END -->
 
 <!-- GIT_WORKFLOW:START -->
@@ -589,7 +570,7 @@ See `requirements.txt`:
 - `websockets` - VTS WebSocket client
 - `requests` - HTTP client for API calls
 - `asyncio` - Built-in async support
-- `aisuite` - Unified LLM provider interface
+- `google-generativeai` - Google's native Gemini SDK
 
 ### Required Services
 

@@ -4,7 +4,8 @@ import sys
 import time
 from typing import Any, Dict, Optional
 
-import aisuite as ai
+from google import genai
+from google.genai import types
 
 from model_control.vts_expressions import (
     agree,
@@ -21,12 +22,11 @@ from model_control.vts_expressions import (
 )
 
 # Configuration Constants
-DEFAULT_PROVIDER = "ollama"
-DEFAULT_OLLAMA_URL = "http://localhost:11434"
+DEFAULT_PROVIDER = "google"
 DEFAULT_TIMEOUT = 30
 DEFAULT_TEMPERATURE = 0.75
 
-# Expression functions for aisuite function calling
+# Expression functions for function calling
 EXPRESSION_TOOLS = [
     smile,
     laugh,
@@ -42,12 +42,7 @@ EXPRESSION_TOOLS = [
 ]
 
 # Provider Model Defaults
-PROVIDER_MODEL_DEFAULTS = {
-    "ollama": "llama3",
-    "google": "gemini-1.5-flash",  # Fast model for real-time use
-    "openai": "gpt-4o-mini",
-    "anthropic": "claude-3-haiku",
-}
+PROVIDER_MODEL_DEFAULTS = "models/gemini-2.5-flash"
 
 
 class LLMClient:
@@ -57,19 +52,17 @@ class LLMClient:
         """Initialize LLM client."""
         self._provider = provider or os.getenv("LLM_PROVIDER", DEFAULT_PROVIDER).lower()
         self._model = model or os.getenv(
-            "LLM_MODEL", PROVIDER_MODEL_DEFAULTS.get(self._provider, "llama3")
+            "LLM_MODEL",
+            PROVIDER_MODEL_DEFAULTS,
         )
         self._timeout = int(os.getenv("LLM_TIMEOUT", DEFAULT_TIMEOUT))
         self._temperature = float(os.getenv("LLM_TEMPERATURE", DEFAULT_TEMPERATURE))
 
-        # Provider-specific configuration
-        self._ollama_base_url = os.getenv("OLLAMA_BASE_URL", DEFAULT_OLLAMA_URL)
+        # Google API configuration
         self._google_api_key = os.getenv("GOOGLE_API_KEY")
-        self._openai_api_key = os.getenv("OPENAI_API_KEY")
-        self._anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
 
         self._last_response_time: Optional[float] = None
-        self._client: Optional[ai.Client] = None
+        self._client: Optional[genai.Client] = None
         self._project_root = os.path.dirname(os.path.abspath(__file__))
 
         self._validate_and_setup()
@@ -84,7 +77,7 @@ class LLMClient:
             raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
 
     def _validate_and_setup(self) -> None:
-        """Validate configuration and set up aisuite client."""
+        """Validate configuration and set up google-generativeai client."""
         if not self._validate_provider_config():
             raise ValueError(self._get_provider_validation_error())
 
@@ -93,42 +86,30 @@ class LLMClient:
 
     def _validate_provider_config(self) -> bool:
         """Validate that the provider has all required configuration."""
-        if self._provider == "ollama":
-            return self._ollama_base_url.startswith("http")
-        elif self._provider == "google":
-            return bool(self._google_api_key)
-        elif self._provider == "openai":
-            return bool(self._openai_api_key)
-        elif self._provider == "anthropic":
-            return bool(self._anthropic_api_key)
-        else:
+        # Only support Google provider with google-generativeai
+        if self._provider != "google":
             return False
+        return bool(self._google_api_key)
 
     def _get_provider_validation_error(self) -> str:
         """Get descriptive error message for provider configuration issues."""
-        if self._provider == "ollama":
-            return f"Ollama provider configuration error. Set OLLAMA_BASE_URL environment variable (current: {self._ollama_base_url})"
-        elif self._provider == "google":
-            return "Google/Gemini provider requires GOOGLE_API_KEY environment variable. Get your API key from https://makersuite.google.com/app/apikey"
-        elif self._provider == "openai":
-            return "OpenAI provider requires OPENAI_API_KEY environment variable. Get your API key from https://platform.openai.com/api-keys"
-        elif self._provider == "anthropic":
-            return "Anthropic provider requires ANTHROPIC_API_KEY environment variable. Get your API key from https://console.anthropic.com/"
-        else:
-            return f"Unsupported provider: {self._provider}. Supported providers: ollama, google, openai, anthropic"
+        if self._provider != "google":
+            return f"Unsupported provider: {self._provider}. This version only supports 'google' provider."
+        return "Google/Gemini provider requires GOOGLE_API_KEY environment variable. Get your API key from https://makersuite.google.com/app/apikey"
 
     def _setup_provider_environment(self) -> None:
         """Set up provider-specific environment variables."""
-        if self._provider == "ollama" and self._ollama_base_url != DEFAULT_OLLAMA_URL:
-            os.environ["OLLAMA_BASE_URL"] = self._ollama_base_url
+        # Set up Google API key if provided
+        if self._google_api_key:
+            os.environ["GOOGLE_API_KEY"] = self._google_api_key
 
-    def _create_client(self) -> ai.Client:
-        """Create and return configured aisuite client."""
-        return ai.Client()
+    def _create_client(self) -> genai.Client:
+        """Create and return configured google-generativeai client."""
+        return genai.Client(api_key=self._google_api_key)
 
     def _get_model_string(self) -> str:
-        """Get full model string for aisuite."""
-        return f"{self._provider}:{self._model}"
+        """Get model string for google-generativeai."""
+        return self._model
 
     def call_llm(
         self, user_prompt: str, system_prompt: Optional[str] = None
@@ -146,34 +127,136 @@ class LLMClient:
 
         start_time = time.time()
         try:
-            messages = []
             # load system prompt from prompt/ folder if not provided
             if not system_prompt:
                 system_prompt = self._load_prompt("system")
 
-            messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": user_prompt})
+            # Combine system and user prompts
+            combined_prompt = f"{system_prompt}\n\nUser: {user_prompt}"
 
-            response = self._client.chat.completions.create(
+            # First call to get potential function calls
+            response = self._client.models.generate_content(
                 model=self._get_model_string(),
-                messages=messages,
-                tools=EXPRESSION_TOOLS,  # Add expression functions as tools
-                max_turns=2,  # Allow LLM to make one function call
-                temperature=self._temperature,
-                max_tokens=300,  # Increased for conversational responses
+                contents=combined_prompt,
+                config=types.GenerateContentConfig(
+                    tools=EXPRESSION_TOOLS,  # Add expression functions as tools
+                    temperature=self._temperature,
+                    max_output_tokens=300,  # Increased for conversational responses
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                        disable=True  # Disable automatic calling so we can capture and execute manually
+                    ),
+                ),
             )
 
             self._last_response_time = time.time() - start_time
 
-            # Parse response for both text and expression
-            return self._parse_unified_response(response)
+            # Check if there are function calls to process
+            function_calls = []
+            if hasattr(response, "function_calls") and response.function_calls:
+                function_calls.extend(response.function_calls)
+            elif hasattr(response, "candidates") and response.candidates:
+                candidate = response.candidates[0]
+                if (
+                    hasattr(candidate, "content")
+                    and candidate.content
+                    and hasattr(candidate.content, "parts")
+                    and candidate.content.parts
+                ):
+                    for part in candidate.content.parts:
+                        if hasattr(part, "function_call"):
+                            function_calls.append(part.function_call)
+
+            # If we have function calls, execute them and continue conversation
+            if function_calls:
+                # Execute the first function call
+                function_call = function_calls[0]
+                function_name = None
+                if hasattr(function_call, "name"):
+                    function_name = function_call.name
+                elif hasattr(function_call, "function_call") and hasattr(
+                    function_call.function_call, "name"
+                ):
+                    function_name = function_call.function_call.name
+
+                # Execute the function
+                if function_name:
+                    self._execute_function_call(function_call)
+
+                # Create function response and continue conversation
+                try:
+                    if not function_name:
+                        raise ValueError(
+                            "Could not extract function name from function call"
+                        )
+
+                    function_response = types.Part.from_function_response(
+                        name=function_name,
+                        response={
+                            "result": f"Expression {function_name} executed successfully"
+                        },
+                    )
+
+                    # Continue conversation with function response
+                    if not (hasattr(response, "candidates") and response.candidates):
+                        raise ValueError("No candidates in response")
+
+                    final_response = self._client.models.generate_content(
+                        model=self._get_model_string(),
+                        contents=[
+                            types.Content(
+                                role="user",
+                                parts=[types.Part.from_text(text=combined_prompt)],
+                            ),
+                            response.candidates[0].content,  # The function call request
+                            types.Content(
+                                role="tool", parts=[function_response]
+                            ),  # Our function response
+                        ],
+                        config=types.GenerateContentConfig(
+                            tools=EXPRESSION_TOOLS,
+                            temperature=self._temperature,
+                            max_output_tokens=300,
+                        ),
+                    )
+
+                    # Parse the final response
+                    result = {
+                        "text_response": final_response.text or "",
+                        "expression_called": function_name,
+                        "intermediate_messages": [
+                            {
+                                "role": "assistant",
+                                "function_calls": [{"name": function_name, "args": {}}],
+                            }
+                        ],
+                    }
+
+                except Exception as e:
+                    print(
+                        f"Warning: Could not continue conversation after function call: {e}"
+                    )
+                    # Fallback to just the function call result
+                    result = {
+                        "text_response": f"*{function_name} expression*",  # Simple fallback
+                        "expression_called": function_name,
+                        "intermediate_messages": [],
+                    }
+            else:
+                # No function calls, just return the text response
+                result = {
+                    "text_response": response.text or "",
+                    "expression_called": None,
+                    "intermediate_messages": [],
+                }
+
+            return result
 
         except Exception as e:
             self._last_response_time = time.time() - start_time
             raise Exception(f"LLM request failed: {e}")
 
     def _parse_unified_response(self, response) -> Dict[str, Any]:
-        """Parse aisuite response for both text and expression function calls."""
+        """Parse google-generativeai response for both text and expression function calls."""
         result = {
             "text_response": "",
             "expression_called": None,
@@ -181,38 +264,104 @@ class LLMClient:
         }
 
         try:
-            # Get the final response content
-            final_message = response.choices[0].message
-            result["text_response"] = final_message.content or ""
+            # Get text response
+            result["text_response"] = response.text or ""
 
-            # Get intermediate messages for function call analysis
-            if hasattr(response.choices[0], "intermediate_messages"):
-                result["intermediate_messages"] = response.choices[
-                    0
-                ].intermediate_messages
+            # Check for function calls in multiple locations
+            function_calls = []
 
-                # Look for function calls in intermediate messages
-                for msg in result["intermediate_messages"]:
-                    if hasattr(msg, "tool_calls") and msg.tool_calls:
-                        # Get the first function call (we limit to max_turns=2)
-                        function_call = msg.tool_calls[0]
-                        if (
-                            hasattr(function_call, "function")
-                            and function_call.function
-                        ):
-                            result["expression_called"] = function_call.function.name
-                            break
+            # Check response.function_calls (for automatic function calling)
+            if hasattr(response, "function_calls") and response.function_calls:
+                function_calls.extend(response.function_calls)
+
+            # Check response.candidates[0].content.parts for function calls
+            if hasattr(response, "candidates") and response.candidates:
+                candidate = response.candidates[0]
+                if (
+                    hasattr(candidate, "content")
+                    and candidate.content
+                    and hasattr(candidate.content, "parts")
+                    and candidate.content.parts
+                ):
+                    for part in candidate.content.parts:
+                        if hasattr(part, "function_call"):
+                            function_calls.append(part.function_call)
+
+            # Process function calls
+            if function_calls:
+                # Get the first function call
+                function_call = function_calls[0]
+                if hasattr(function_call, "name"):
+                    result["expression_called"] = function_call.name
+                elif hasattr(function_call, "function_call") and hasattr(
+                    function_call.function_call, "name"
+                ):
+                    result["expression_called"] = function_call.function_call.name
+
+                # Execute the function
+                self._execute_function_call(function_call)
+
+                # Store function calls info in intermediate messages
+                result["intermediate_messages"] = [
+                    {
+                        "role": "assistant",
+                        "function_calls": [
+                            {
+                                "name": getattr(
+                                    fc,
+                                    "name",
+                                    getattr(fc, "function_call", {}).get(
+                                        "name", "unknown"
+                                    ),
+                                ),
+                                "args": getattr(
+                                    fc,
+                                    "args",
+                                    getattr(fc, "function_call", {}).get("args", {}),
+                                ),
+                            }
+                            for fc in function_calls
+                        ],
+                    }
+                ]
 
         except Exception as e:
             print(f"Warning: Could not parse function calling response: {e}")
             # Fallback to basic text response
             result["text_response"] = (
-                str(response.choices[0].message.content)
-                if response.choices
+                str(response.text)
+                if hasattr(response, "text") and response.text
                 else "Error processing response"
             )
 
         return result
+
+    def _execute_function_call(self, function_call) -> None:
+        """Execute the called function."""
+        try:
+            # Extract function name from different possible structures
+            function_name = None
+            if hasattr(function_call, "name"):
+                function_name = function_call.name
+            elif hasattr(function_call, "function_call") and hasattr(
+                function_call.function_call, "name"
+            ):
+                function_name = function_call.function_call.name
+
+            if not function_name:
+                print(
+                    f"Warning: Could not extract function name from function call: {function_call}"
+                )
+                return
+
+            # Find and call the function from EXPRESSION_TOOLS
+            for tool_func in EXPRESSION_TOOLS:
+                if tool_func.__name__ == function_name:
+                    # Execute the sync function directly
+                    tool_func()
+                    break
+        except Exception as e:
+            print(f"Warning: Could not execute function call: {e}")
 
     @property
     def provider(self) -> str:

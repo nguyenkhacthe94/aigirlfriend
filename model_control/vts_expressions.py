@@ -7,7 +7,7 @@ each expression. Do NOT change the docstrings without understanding the impact o
 """
 
 
-async def smile():
+def smile():
     """
     Display a gentle, warm smile expression on the avatar's face.
 
@@ -27,7 +27,7 @@ async def smile():
     print("Expression: Smile")
 
 
-async def laugh():
+def laugh():
     """
     Display intense joy, laughter, or overwhelming happiness expression.
 
@@ -48,7 +48,7 @@ async def laugh():
     print("Expression: Laugh")
 
 
-async def angry():
+def angry():
     """
     Display anger, frustration, or irritation expression.
 
@@ -69,7 +69,7 @@ async def angry():
     print("Expression: Angry")
 
 
-async def blink():
+def blink():
     """
     Perform a simple blink expression for natural movement.
 
@@ -85,7 +85,7 @@ async def blink():
     print("Expression: Blink")
 
 
-async def wow():
+def wow():
     """
     Display amazement, astonishment, or being impressed expression.
 
@@ -106,7 +106,7 @@ async def wow():
     print("Expression: Wow")
 
 
-async def agree():
+def agree():
     """
     Show agreement, approval, or positive acknowledgment.
 
@@ -124,7 +124,7 @@ async def agree():
     # TODO Call Head_Move_X
 
 
-async def disagree():
+def disagree():
     """
     Show disagreement, disapproval, or negative response.
 
@@ -141,7 +141,7 @@ async def disagree():
     # TODO Call Head_Move_Y
 
 
-async def yap():
+def yap():
     """
     Show active talking, chatting, or animated conversation expression.
 
@@ -158,7 +158,7 @@ async def yap():
     print("Expression: Yapping")
 
 
-async def shy():
+def shy():
     """
     Display shyness, bashfulness, or timid expression.
 
@@ -178,7 +178,7 @@ async def shy():
     print("Expression: Shy")
 
 
-async def sad():
+def sad():
     """
     Display sadness, melancholy, or disappointment expression.
 
@@ -199,7 +199,7 @@ async def sad():
     print("Expression: Sad")
 
 
-async def love():
+def love():
     """
     Display affection, love, or deep positive emotion expression.
 

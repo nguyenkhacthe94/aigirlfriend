@@ -62,7 +62,6 @@ async def main():
                     else:
                         print(f"⏱️  Response time: {response_time:.0f}ms (Slow)")
 
-                    # Note: Expression functions are already called by aisuite function calling
                     # In production, these would trigger actual VTS parameter updates
                     print("✅ Expression applied to avatar!")
 
