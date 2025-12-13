@@ -15,6 +15,46 @@ from model_control import vts_movement
 
 
 # =============================================================================
+# Hiyori Parameter Ranges (Extracted from hiyori.vtube.json)
+# =============================================================================
+# These are the ACTUAL expected ranges for VTS API calls, NOT normalized 0-1.
+# Source: ParameterSettings[].OutputRangeLower/Upper in hiyori.vtube.json
+# Updated: 2025-12-13 (fix/parameter-ranges branch)
+
+HIYORI_RANGES = {
+    "ParamAngleX": {"min": -30.0, "max": 30.0, "default": 0.0},
+    "ParamAngleY": {"min": -30.0, "max": 30.0, "default": 0.0},
+    "ParamAngleZ": {"min": -30.0, "max": 30.0, "default": 0.0},
+    "ParamArmLA": {"min": -10.0, "max": 10.0, "default": 0.0},
+    "ParamBodyAngleX": {"min": -10.0, "max": 10.0, "default": 0.0},
+    "ParamBodyAngleY": {"min": -10.0, "max": 10.0, "default": 0.0},
+    "ParamBodyAngleZ": {"min": -10.0, "max": 10.0, "default": 0.0},
+    "ParamBreath": {"min": 0.0, "max": 1.0, "default": 0.0},
+    "ParamBrowLForm": {"min": -1.0, "max": 1.0, "default": 0.0},
+    "ParamBrowLY": {"min": -1.0, "max": 1.0, "default": 0.0},
+    "ParamBrowRForm": {"min": -1.0, "max": 1.0, "default": 0.0},
+    "ParamBrowRY": {"min": -1.0, "max": 1.0, "default": 0.0},
+    "ParamCheek": {"min": -1.0, "max": 1.0, "default": 0.0},
+    "ParamEyeBallX": {"min": -1.0, "max": 1.0, "default": 0.0},  # Note: VTS inverts this (1.0 to -1.0)
+    "ParamEyeBallY": {"min": -1.0, "max": 1.0, "default": 0.0},
+    "ParamEyeLOpen": {"min": 0.0, "max": 1.9, "default": 0.0},
+    "ParamEyeLSmile": {"min": 0.0, "max": 1.0, "default": 0.0},
+    "ParamEyeROpen": {"min": 0.0, "max": 1.9, "default": 0.0},
+    "ParamEyeRSmile": {"min": 0.0, "max": 1.0, "default": 0.0},
+    "ParamHandL": {"min": -1.0, "max": 1.0, "default": 0.0},
+    "ParamHandLB": {"min": -10.0, "max": 10.0, "default": 0.0},
+    "ParamHandRB": {"min": -10.0, "max": 10.0, "default": 0.0},
+    "ParamMouthForm": {"min": -2.0, "max": 1.0, "default": 0.0},
+    "ParamMouthOpenY": {"min": 0.0, "max": 2.1, "default": 0.0},
+    "ParamMouthX": {"min": -1.0, "max": 1.0, "default": 0.0},
+    # Position parameters (not in vtube.json, using standard VTS ranges)
+    "ParamPositionX": {"min": -100.0, "max": 100.0, "default": 0.0},
+    "ParamPositionY": {"min": -100.0, "max": 100.0, "default": 0.0},
+    "ParamPositionZ": {"min": -100.0, "max": 100.0, "default": 0.0},
+}
+
+
+# =============================================================================
 # Hiyori Parameter → VTS Movement Function Mapping
 # =============================================================================
 
@@ -174,7 +214,7 @@ async def control_hiyori_param(ws, param_name: str, value: float):
     Args:
         ws: WebSocket connection to VTS
         param_name: Hiyori parameter name (e.g., "ParamMouthOpenY")
-        value: Parameter value (typically 0.0 to 1.0 for Hiyori params)
+        value: Parameter value (will be clamped to valid range)
         
     Returns:
         True if parameter was controlled, False if no mapping exists
@@ -182,12 +222,81 @@ async def control_hiyori_param(ws, param_name: str, value: float):
     Example:
         >>> await control_hiyori_param(ws, "ParamMouthOpenY", 1.0)
         True
+        
+    Note:
+        Values are automatically clamped to the parameter's defined range.
+        E.g., ParamAngleX accepts -30.0 to 30.0, NOT 0.0 to 1.0
     """
     func = get_vts_function(param_name)
-    if func:
-        await func(ws, value)
-        return True
-    return False
+    if not func:
+        return False
+    
+    # Clamp value to valid range if range is defined
+    if param_name in HIYORI_RANGES:
+        param_range = HIYORI_RANGES[param_name]
+        min_val = param_range["min"]
+        max_val = param_range["max"]
+        
+        # Clamp the value
+        original_value = value
+        value = max(min_val, min(max_val, value))
+        
+        # Warn if value was clamped
+        if value != original_value:
+            print(f"⚠️  Warning: {param_name} value clamped from {original_value} to {value} (range: {min_val} to {max_val})")
+    
+    await func(ws, value)
+    return True
+
+
+
+def get_param_range(param_name: str):
+    """
+    Get the valid range for a Hiyori parameter.
+    
+    Args:
+        param_name: Hiyori parameter name
+        
+    Returns:
+        Dict with 'min', 'max', 'default' keys, or None if not found
+        
+    Example:
+        >>> get_param_range("ParamAngleX")
+        {'min': -30.0, 'max': 30.0, 'default': 0.0}
+    """
+    return HIYORI_RANGES.get(param_name)
+
+
+def get_param_default(param_name: str):
+    """
+    Get the default value for a Hiyori parameter.
+    
+    Args:
+        param_name: Hiyori parameter name
+        
+    Returns:
+        Default value (float), or 0.0 if not found
+    """
+    param_range = HIYORI_RANGES.get(param_name)
+    return param_range["default"] if param_range else 0.0
+
+
+def clamp_value(param_name: str, value: float):
+    """
+    Clamp a value to the valid range for a parameter.
+    
+    Args:
+        param_name: Hiyori parameter name
+        value: Value to clamp
+        
+    Returns:
+        Clamped value
+    """
+    param_range = HIYORI_RANGES.get(param_name)
+    if not param_range:
+        return value
+    
+    return max(param_range["min"], min(param_range["max"], value))
 
 
 # =============================================================================
@@ -241,6 +350,19 @@ if __name__ == "__main__":
     for param in list_supported_parameters():
         print(f"  • {param}")
     
+    # Display key parameter ranges
+    print("\n" + "=" * 60)
+    print("KEY PARAMETER RANGES (from hiyori.vtube.json)")
+    print("=" * 60)
+    key_params = ["ParamAngleX", "ParamAngleY", "ParamAngleZ", 
+                  "ParamBodyAngleX", "ParamBodyAngleY", "ParamBodyAngleZ",
+                  "ParamMouthOpenY", "ParamEyeLOpen", "ParamEyeROpen"]
+    
+    for param in key_params:
+        param_range = get_param_range(param)
+        if param_range:
+            print(f"  • {param:20s} : {param_range['min']:6.1f} to {param_range['max']:6.1f} (default: {param_range['default']:6.1f})")
+    
     print("\n" + "=" * 60)
     print("USAGE EXAMPLE")
     print("=" * 60)
@@ -254,9 +376,11 @@ async def demo():
     # ... authenticate ...
     
     # Control Hiyori parameters using existing VTS functions
+    # NOTE: Values are now using REAL ranges, not 0-1!
     await control_hiyori_param(ws, "ParamMouthOpenY", 1.0)  # Open mouth
-    await control_hiyori_param(ws, "ParamAngleX", 0.5)      # Tilt head
+    await control_hiyori_param(ws, "ParamAngleX", 15.0)     # Tilt head 15 degrees (NOT 0.5!)
     await control_hiyori_param(ws, "ParamEyeLOpen", 0.0)    # Close left eye
 
 asyncio.run(demo())
 """)
+
