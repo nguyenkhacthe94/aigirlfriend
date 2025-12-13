@@ -4,7 +4,7 @@ import sys
 import os
 
 from model_control.vts_expressions import (
-    smile, laugh, angry, blink, wow, agree, disagree, yap, shy, sad, love
+    smile, laugh, angry, blink, wow, agree, disagree, yap, shy, sad, love, hello
 )
 
 COMMANDS = {
@@ -18,7 +18,8 @@ COMMANDS = {
     "yap": yap,
     "shy": shy,
     "sad": sad,
-    "love": love
+    "love": love,
+    "hello": hello
 }
 
 async def main():
