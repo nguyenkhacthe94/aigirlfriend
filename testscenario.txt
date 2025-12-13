@@ -1,0 +1,44 @@
+---------------
+# Test head movements (6 parameters)
+python show_all_parameters.py demo HEAD_MOVEMENT
+
+# Test eyes (6 parameters)
+python show_all_parameters.py demo EYES
+
+# Test mouth (3 parameters)
+python show_all_parameters.py demo MOUTH
+
+# Test eyebrows (3 parameters)
+python show_all_parameters.py demo EYEBROWS
+
+# Test facial expressions (3 parameters)
+python show_all_parameters.py demo EXPRESSIONS
+------------
+# Test mouse tracking (2 parameters)
+python show_all_parameters.py demo MOUSE_TRACKING
+
+# Test voice/lip sync parameters (10 parameters)
+python show_all_parameters.py demo VOICE_LIP_SYNC
+
+# Test hand tracking (16 parameters)
+python show_all_parameters.py demo HAND_TRACKING
+
+# Test left hand fingers (5 parameters)
+python show_all_parameters.py demo FINGER_TRACKING_LEFT
+
+# Test right hand fingers (5 parameters)
+python show_all_parameters.py demo FINGER_TRACKING_RIGHT
+------------------------
+# Test body tracking (11 parameters)
+python show_all_parameters.py demo MOCOPI_BODY_TRACKING
+
+# Test arm tracking (10 parameters)
+python show_all_parameters.py demo MOCOPI_ARMS
+
+# Test leg tracking (8 parameters)
+python show_all_parameters.py demo MOCOPI_LEGS
+-----------------------------------
+# List all 88 parameters with ranges and descriptions
+python show_all_parameters.py
+-----------------------------
+python test_single_param.py <parameter_name> <value> [duration]

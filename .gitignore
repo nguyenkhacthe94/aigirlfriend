@@ -1,0 +1,12 @@
+.venv/
+venv/
+env/ 
+token.txt
+auth.txt
+.vtube_studio_token
+*.token
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+#git rm -r --cached .

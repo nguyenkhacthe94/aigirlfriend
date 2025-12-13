@@ -1,6 +1,6 @@
 """
-VTube Studio Diagnostic Tool
-Checks current model and available parameters
+VTube Studio Diagnostic Tool with Authentication
+Checks current model and available parameters using authentication
 """
 
 import asyncio
@@ -10,54 +10,54 @@ import sys
 import os
 
 VTS_URL = "ws://localhost:8001"
+TOKEN_FILE = "token.txt"
 
 async def diagnose_vts():
     """Connect to VTS and print diagnostic information."""
     
     print("=" * 60)
-    print("VTube Studio Diagnostic Tool")
+    print("VTube Studio Diagnostic Tool (With Auth)")
     print("=" * 60)
     
     # Load authentication token
     token = None
-    TOKEN_FILE = "token.txt"
     if os.path.exists(TOKEN_FILE):
         with open(TOKEN_FILE, 'r') as f:
             token = f.read().strip()
         print(f"\n[OK] Loaded authentication token from {TOKEN_FILE}")
     else:
-        print(f"\n[WARNING] No token file found. Some features may not work.")
-        print("   Run get_token.py to create a token.")
+        print(f"\n[WARNING] No token file found. Run get_token.py first!")
+        return
     
     try:
         print("\n[1/5] Connecting to VTube Studio...")
         async with websockets.connect(VTS_URL) as ws:
             print("[OK] Connected successfully!")
             
-            # Authenticate if we have a token
-            if token:
-                print("\n[2/5] Authenticating...")
-                auth_msg = {
-                    "apiName": "VTubeStudioPublicAPI",
-                    "apiVersion": "1.0",
-                    "requestID": "auth-request",
-                    "messageType": "AuthenticationRequest",
-                    "data": {
-                        "pluginName": "PythonClient",
-                        "pluginDeveloper": "MyAIProject",
-                        "authenticationToken": token
-                    }
+            # Authenticate
+            print("\n[2/5] Authenticating...")
+            auth_msg = {
+                "apiName": "VTubeStudioPublicAPI",
+                "apiVersion": "1.0",
+                "requestID": "auth-request",
+                "messageType": "AuthenticationRequest",
+                "data": {
+                    "pluginName": "PythonClient",
+                    "pluginDeveloper": "MyAIProject",
+                    "authenticationToken": token
                 }
-                await ws.send(json.dumps(auth_msg))
-                auth_response = json.loads(await ws.recv())
-                
-                if auth_response.get("data", {}).get("authenticated", False):
-                    print("[OK] Authentication successful!")
-                else:
-                    print("[FAIL] Authentication failed!")
-                    return
+            }
+            await ws.send(json.dumps(auth_msg))
+            auth_response = json.loads(await ws.recv())
+            
+            print(f"Auth Response: {json.dumps(auth_response, indent=2)}")
+            
+            if auth_response.get("data", {}).get("authenticated", False):
+                print("[OK] Authentication successful!")
             else:
-                print("\n[2/5] Skipping authentication (no token)")
+                print("[FAIL] Authentication failed!")
+                print(f"Response: {json.dumps(auth_response, indent=2)}")
+                return
             
             # Get API State
             print("\n[3/5] Checking API state...")
@@ -70,7 +70,9 @@ async def diagnose_vts():
             await ws.send(json.dumps(msg))
             response = json.loads(await ws.recv())
             
-            if response["data"]["active"]:
+            print(f"API State Response: {json.dumps(response, indent=2)}")
+            
+            if response.get("data", {}).get("active", False):
                 print("[OK] VTube Studio API is active")
             else:
                 print("[FAIL] VTube Studio API is NOT active")
@@ -83,9 +85,12 @@ async def diagnose_vts():
             await ws.send(json.dumps(msg))
             response = json.loads(await ws.recv())
             
-            model_data = response["data"]
+            print(f"\nFull Model Response:")
+            print(json.dumps(response, indent=2))
             
-            print(f"\nCurrent Model:")
+            model_data = response.get("data", {})
+            
+            print(f"\nParsed Model Information:")
             print(f"  Name: {model_data.get('modelName', 'Unknown')}")
             print(f"  ID: {model_data.get('modelID', 'Unknown')}")
             print(f"  Loaded: {model_data.get('modelLoaded', False)}")
@@ -132,45 +137,6 @@ async def diagnose_vts():
                     max_val = param['max']
                     default_val = param['defaultValue']
                     print(f"{name:<30} {min_val:<10.2f} {max_val:<10.2f} {default_val:<10.2f}")
-            
-            # Analysis and recommendations
-            print("\n" + "=" * 60)
-            print("ANALYSIS")
-            print("=" * 60)
-            
-            # Check for chino11-specific parameters
-            param_names = [p['name'] for p in parameters]
-            
-            chino11_params = [
-                "PARAM_ANGLE_X", "PARAM_ANGLE_Y", "PARAM_ANGLE_Z",
-                "PARAM_EYE_L_OPEN", "PARAM_EYE_R_OPEN",
-                "PARAM_MOUTH_FORM", "PARAM_MOUTH_OPEN_Y",
-                "PARAM_BROW_L_Y", "PARAM_BROW_R_Y"
-            ]
-            
-            found_chino11 = sum(1 for p in chino11_params if p in param_names)
-            
-            print(f"\nChino11 Parameter Match: {found_chino11}/{len(chino11_params)} parameters found")
-            
-            if found_chino11 >= 7:
-                print("[OK] This appears to be the chino11 model (or compatible)")
-                print("  Your expressions should work!")
-            elif found_chino11 > 0:
-                print("[WARNING] Partial match - some parameters exist but not all")
-                print("  Some expressions may work, others may not")
-            else:
-                print("[FAIL] This does NOT appear to be the chino11 model")
-                print(f"  Current model: {model_data.get('modelName', 'Unknown')}")
-                print("\nRECOMMENDATION:")
-                print("  1. Load the chino11 model in VTube Studio")
-                print("  2. Or create a new model config for the current model")
-            
-            # Missing parameters
-            missing = [p for p in chino11_params if p not in param_names]
-            if missing:
-                print(f"\nMissing chino11 parameters:")
-                for mp in missing:
-                    print(f"  - {mp}")
     
     except ConnectionRefusedError:
         print("\n[ERROR] Could not connect to VTube Studio")
@@ -186,7 +152,7 @@ async def diagnose_vts():
         traceback.print_exc()
 
 if __name__ == "__main__":
-    print("\nStarting VTube Studio diagnostics...\n")
+    print("\nStarting VTube Studio diagnostics with authentication...\n")
     try:
         asyncio.run(diagnose_vts())
     except KeyboardInterrupt:
