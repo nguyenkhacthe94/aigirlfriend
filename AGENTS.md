@@ -482,6 +482,41 @@ Input text: Wow, that's amazing news!
 LLM emotion result: {'emotion': 'happy', 'intensity': 0.9}
 ```
 
+### Prompt Management Guidelines
+
+**CRITICAL:** All LLM prompts MUST be stored in the `prompts/` folder as Markdown files.
+
+#### Prompt Template Example
+
+**prompts/emotion_system.md:**
+
+```markdown
+# Emotion Detection System Prompt
+
+You are a precise emotion classifier for a VTuber avatar system.
+
+## Response Requirements
+
+- Respond ONLY with valid JSON containing emotion and intensity fields
+- No additional text, explanations, or formatting
+
+## Available Emotions
+
+neutral, happy, sad, angry, surprised
+
+## Intensity Scale
+
+0.0-1.0 where 0.0 = neutral, 1.0 = maximum intensity
+```
+
+**Rules:**
+
+1. **Never hardcode prompts in Python code** - Always use template files
+2. **Use descriptive template names** - `emotion_`, `conversation_`, `analysis_`
+3. **Include placeholder documentation** - Document all `{variable}` substitutions
+4. **Version control prompts** - Templates are part of the codebase
+5. **Test prompt changes independently** - Verify templates before code integration
+
 ### Combining Both Modules (`main.py`)
 
 Once both modules work individually:
