@@ -10,8 +10,14 @@ TOKEN_FILE = "vts_token.txt"
 
 async def vts_send(ws, message: dict) -> dict:
     """Send a JSON message to VTS and return the JSON response."""
-    await ws.send(json.dumps(message))
-    resp_raw = await ws.recv()
+    if hasattr(ws, "lock"):
+        async with ws.lock:
+            await ws.send(json.dumps(message))
+            resp_raw = await ws.recv()
+    else:
+        await ws.send(json.dumps(message))
+        resp_raw = await ws.recv()
+    
     return json.loads(resp_raw)
 
 async def vts_request_token(ws) -> str:

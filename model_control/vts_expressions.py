@@ -10,7 +10,12 @@ from model_control.vts_movement import (
     move_eye_open_right,
     move_cheek_puff,
     move_face_angle_y,
-    move_face_angle_x
+    move_face_angle_y,
+    move_face_angle_x,
+    move_hand_left_found,
+    move_hand_left_position_y,
+    move_hand_left_position_x,
+    move_hand_left_angle_z # For waving
 )
 
 # Global WebSocket connection
@@ -22,6 +27,7 @@ async def get_connection():
     if _ws is None or getattr(_ws, "state", 0) != 1: # 1 is State.OPEN
         print("Connecting to VTube Studio...")
         _ws = await websockets.connect(VTS_URL)
+        _ws.lock = asyncio.Lock() # Attach lock for threaded access
         token = await vts_get_token(_ws)
         await vts_authenticate(_ws, token)
         print("Connected and authenticated.")
@@ -114,3 +120,41 @@ async def love():
     await move_cheek_puff(ws, 1.0)
     await move_mouth_smile(ws, 1.0)
     # Could imply "Love" via eyes/blush if model supports it specifically
+
+async def hello():
+    print("Expression: Hello")
+    ws = await get_connection()
+    
+    # 1. Activate Hand
+    await move_hand_left_found(ws, 1.0)
+    await move_hand_left_position_y(ws, 0.5) # Raise arm
+    await move_hand_left_position_x(ws, -0.5) # Position slightly left
+
+    # 2. Define sub-routines
+    async def do_yap():
+        # Yap for ~1 second (e.g. 5 cycle of 0.2s)
+        for _ in range(5):
+            await move_mouth_open(ws, 0.8)
+            await asyncio.sleep(0.1)
+            await move_mouth_open(ws, 0.0)
+            await asyncio.sleep(0.1)
+
+    async def do_wave():
+        # Wave left/right for ~1 second
+        # Start at neutral rotation
+        for _ in range(3):
+            # Wave Out
+            await move_hand_left_angle_z(ws, -20.0)
+            await asyncio.sleep(0.15)
+            # Wave In
+            await move_hand_left_angle_z(ws, 20.0)
+            await asyncio.sleep(0.15)
+        # Reset rotation
+        await move_hand_left_angle_z(ws, 0.0)
+
+    # 3. Run concurrently
+    await asyncio.gather(do_yap(), do_wave())
+
+    # 4. Cleanup/Reset Hand (Optional, but good practice to allow it to disappear)
+    # await asyncio.sleep(0.5)
+    # await move_hand_left_found(ws, 0.0)
