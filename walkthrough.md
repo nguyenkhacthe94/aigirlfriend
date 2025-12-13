@@ -10,7 +10,7 @@ I have implemented the AI VTuber Controller based on the `AI_VTuber.md` guide.
 
 ## Prerequisites
 
-1.  **Python 3.7+**: Ensure you have a modern Python version installed.
+1.  **Python 3.10+**: Ensure you have a modern Python version installed.
 2.  **Dependencies**: Run `pip install websockets requests`.
 3.  **VTube Studio**:
     *   Open VTube Studio.
