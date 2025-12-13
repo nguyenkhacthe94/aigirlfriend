@@ -1,15 +1,48 @@
 import json
 import os
+import sys
 import time
 from typing import Any, Dict, Optional
 
 import aisuite as ai
+
+# Add project root to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from model_control.vts_expressions import (
+    agree,
+    angry,
+    blink,
+    disagree,
+    laugh,
+    love,
+    sad,
+    shy,
+    smile,
+    wow,
+    yap,
+)
 
 # Configuration Constants
 DEFAULT_PROVIDER = "ollama"
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
 DEFAULT_TIMEOUT = 30
 DEFAULT_TEMPERATURE = 0.0  # For consistent JSON output
+
+# Expression functions for aisuite function calling
+EXPRESSION_TOOLS = [
+    smile,
+    laugh,
+    angry,
+    blink,
+    wow,
+    agree,
+    disagree,
+    yap,
+    shy,
+    sad,
+    love,
+]
 
 # Provider Model Defaults
 PROVIDER_MODEL_DEFAULTS = {
@@ -100,8 +133,17 @@ class LLMClient:
         """Get full model string for aisuite."""
         return f"{self._provider}:{self._model}"
 
-    def call_llm(self, user_prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Send prompts to the LLM and return the raw response. If system_prompt is not provided, load from prompts/ folder."""
+    def call_llm(
+        self, user_prompt: str, system_prompt: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Send prompts to the LLM with function calling and return unified response.
+
+        Returns:
+            Dict containing:
+            - text_response: The LLM's conversational response
+            - expression_called: Name of expression function called (if any)
+            - intermediate_messages: Full conversation history with function calls
+        """
         if not self._client:
             raise RuntimeError("Client not initialized")
 
@@ -118,54 +160,62 @@ class LLMClient:
             response = self._client.chat.completions.create(
                 model=self._get_model_string(),
                 messages=messages,
+                tools=EXPRESSION_TOOLS,  # Add expression functions as tools
+                max_turns=2,  # Allow LLM to make one function call
                 temperature=self._temperature,
-                max_tokens=150,  # Limit for JSON response
+                max_tokens=300,  # Increased for conversational responses
             )
 
             self._last_response_time = time.time() - start_time
-            return response.choices[0].message.content
+
+            # Parse response for both text and expression
+            return self._parse_unified_response(response)
 
         except Exception as e:
             self._last_response_time = time.time() - start_time
             raise Exception(f"LLM request failed: {e}")
 
-    def call_with_prompt_template(
-        self, prompt_template_name: str, **template_vars
-    ) -> str:
-        """Call LLM using prompt templates from prompts/ folder."""
-        # Load and format user prompt
-        user_prompt_template = self._load_prompt(f"{prompt_template_name}")
-        system_prompt = self._load_prompt("system")
-        user_prompt = user_prompt_template.format(**template_vars)
+    def _parse_unified_response(self, response) -> Dict[str, Any]:
+        """Parse aisuite response for both text and expression function calls."""
+        result = {
+            "text_response": "",
+            "expression_called": None,
+            "intermediate_messages": [],
+        }
 
-        return self.call_llm(user_prompt, system_prompt)
-
-    def get_emotion_for_text(self, text: str) -> dict:
-        """Analyze text and return emotion classification using prompt templates."""
-        raw_response = self.call_with_prompt_template("emotion", text=text)
-        return self._extract_json_from_text(raw_response)
-
-    def _extract_json_from_text(self, raw: str) -> dict:
-        """Extract JSON from LLM response."""
         try:
-            start = raw.find("{")
-            end = raw.rfind("}")
-            if start == -1 or end == -1 or end < start:
-                raise ValueError("No JSON object found")
+            # Get the final response content
+            final_message = response.choices[0].message
+            result["text_response"] = final_message.content or ""
 
-            json_str = raw[start : end + 1]
-            data = json.loads(json_str)
+            # Get intermediate messages for function call analysis
+            if hasattr(response.choices[0], "intermediate_messages"):
+                result["intermediate_messages"] = response.choices[
+                    0
+                ].intermediate_messages
 
-            # Validate and normalize
-            emotion = data.get("emotion", "neutral")
-            intensity = float(data.get("intensity", 0.5))
-            intensity = max(0.0, min(1.0, intensity))
-
-            return {"emotion": emotion, "intensity": intensity}
+                # Look for function calls in intermediate messages
+                for msg in result["intermediate_messages"]:
+                    if hasattr(msg, "tool_calls") and msg.tool_calls:
+                        # Get the first function call (we limit to max_turns=2)
+                        function_call = msg.tool_calls[0]
+                        if (
+                            hasattr(function_call, "function")
+                            and function_call.function
+                        ):
+                            result["expression_called"] = function_call.function.name
+                            break
 
         except Exception as e:
-            print(f"Warning: Could not parse LLM response as JSON: {e}")
-            return {"emotion": "neutral", "intensity": 0.5}
+            print(f"Warning: Could not parse function calling response: {e}")
+            # Fallback to basic text response
+            result["text_response"] = (
+                str(response.choices[0].message.content)
+                if response.choices
+                else "Error processing response"
+            )
+
+        return result
 
     @property
     def provider(self) -> str:

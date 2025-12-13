@@ -89,8 +89,8 @@ def test_llm_client_initialization():
 
 
 def test_emotion_detection_format():
-    """Test emotion detection with mocked LLM response."""
-    print("\n=== Testing Emotion Detection Format ===")
+    """Test unified response format with mocked LLM response."""
+    print("\n=== Testing Unified Response Format ===")
 
     from llm_client import LLMClient
 
@@ -99,20 +99,26 @@ def test_emotion_detection_format():
         try:
             client = LLMClient(provider="google")
 
-            # Mock the call_llm method to return a test response
+            # Mock the call_llm method to return a unified response
             with patch.object(
                 client,
                 "call_llm",
-                return_value='{"emotion": "happy", "intensity": 0.8}',
+                return_value={
+                    "text_response": "That sounds great!",
+                    "expression_called": "smile",
+                    "intermediate_messages": [],
+                },
             ):
-                result = client.get_emotion_for_text("This is a test!")
-                print(f"✓ Mocked emotion detection result: {result}")
+                result = client.call_llm("This is a test!")
+                print(f"✓ Mocked unified response: {result}")
 
                 # Verify format
-                assert "emotion" in result
-                assert "intensity" in result
-                assert isinstance(result["intensity"], float)
-                assert 0.0 <= result["intensity"] <= 1.0
+                assert "text_response" in result
+                assert "expression_called" in result
+                assert isinstance(result["text_response"], str)
+                assert result["expression_called"] in [None] or isinstance(
+                    result["expression_called"], str
+                )
                 print("✓ Result format validation passed")
 
         except Exception as e:

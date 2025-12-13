@@ -6,15 +6,15 @@ AI-powered VTuber controller that uses LLM emotion detection to drive Live2D ava
 
 ## Project Overview
 
-This project connects an AI language model with VTube Studio to create an emotion-responsive Live2D avatar. Text input is analyzed for emotional content, which then drives facial expressions and movements in real-time through VTube Studio's WebSocket API.
+This project connects an AI language model with VTube Studio to create an emotion-responsive Live2D avatar. The system uses a unified LLM approach where conversational responses and facial expressions are generated simultaneously through aisuite function calling.
 
 **Key Components:**
 
 - `vts_client.py` - VTube Studio WebSocket API client (authentication, parameter injection)
-- `llm_client.py` - LLM emotion detection client
+- `llm_client.py` - Unified LLM client with function calling for expression control
+- `model_control/vts_expressions.py` - Expression functions called directly by LLM
+- `prompts/system.md` - Single unified system prompt for AI personality and expression guidance
 - `main.py` - Main orchestration loop
-- `vts_movement.py` - Movement and animation utilities
-- `ai_bot.py` - Bot integration layer
 - `scripts/` - Development-only debugging, helper, and sanity test scripts (never use in production)
 <!-- PROJECT_OVERVIEW:END -->
 
@@ -26,14 +26,17 @@ This project connects an AI language model with VTube Studio to create an emotio
 # Run the main application
 python main.py
 
-# Test VTube Studio connection
-python scripts/test_vts_connection.py
+# Test expression function integration
+python scripts/test_expression_integration.py
 
-# Test LLM emotion detection
-python scripts/test_llm_emotion.py
+# Test unified system prompt
+python scripts/test_system_prompt.py
 
-# Test movement system
-python scripts/test_movement_system.py
+# Test function calling integration
+python scripts/test_function_calling.py
+
+# Comprehensive validation
+python scripts/test_comprehensive_validation.py
 
 # No formal test suite - manual testing preferred for real-time interactivity
 ```
@@ -174,26 +177,27 @@ async def set_params(ws, params): ...
 
 ## Domain-Specific Context
 
-### Emotion System
+### Expression System
 
-**Supported Emotions:**
+**Available Expression Functions:**
 
-- `neutral`, `happy`, `sad`, `angry`, `surprised`
+- `smile()` - Gentle, warm happiness and friendliness
+- `laugh()` - Intense joy, excitement, genuine amusement
+- `angry()` - Frustration, strong disagreement, irritation
+- `blink()` - Natural movement during conversation
+- `wow()` - Amazement, surprise, being impressed
+- `agree()` - Positive acknowledgment, approval, nodding
+- `disagree()` - Polite disagreement, disapproval
+- `yap()` - Animated talking, chatty explanations
+- `shy()` - Bashfulness, modest responses to compliments
+- `sad()` - Empathy, melancholy, disappointment
+- `love()` - Deep appreciation, affection (use sparingly)
 
-**LLM Response Format:**
+**Expression Selection:**
 
-```json
-{
-  "emotion": "happy",
-  "intensity": 0.8
-}
-```
-
-**Intensity Scaling:**
-
-- Range: 0.0 (subtle) to 1.0 (maximum)
-- Applied multiplicatively to parameter values
-- Example: `MouthOpen: 0.5 * intensity`
+- Guided by comprehensive docstrings in each expression function
+- Context-aware based on full conversation history
+- Single system prompt controls both responses and expressions
 
 ### VTube Studio Parameters
 
@@ -204,16 +208,9 @@ async def set_params(ws, params): ...
 - `EyeOpenLeft`, `EyeOpenRight` - Eye openness
 - Custom parameters from your Live2D model
 
-**Parameter Injection:**
+**Expression Function Implementation:**
 
-```python
-params = {
-    "FaceAngleX": 5.0,
-    "MouthOpen": 0.8,
-    "EyeOpenLeft": 0.9
-}
-await vts_client.set_parameters(params)
-```
+Expression functions currently output debug messages. In production, they would trigger VTube Studio parameter updates for the corresponding facial expressions.
 
 <!-- DOMAIN_CONTEXT:END -->
 

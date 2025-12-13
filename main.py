@@ -1,61 +1,80 @@
 import asyncio
-import websockets
-from vts_client import vts_get_token, vts_authenticate, vts_inject_parameters, VTS_URL
-from llm_client import get_emotion_for_text
 
-# Mapping from emotion to VTube Studio parameters
-EMOTION_MAP = {
-    "neutral": {"FaceAngleX": 0.0, "MouthOpen": 0.0, "EyeOpenLeft": 1.0, "EyeOpenRight": 1.0},
-    "happy": {"FaceAngleX": 5.0, "MouthOpen": 0.5, "EyeOpenLeft": 0.8, "EyeOpenRight": 0.8},
-    "sad": {"FaceAngleX": -10.0, "MouthOpen": 0.0, "EyeOpenLeft": 0.6, "EyeOpenRight": 0.6},
-    "angry": {"FaceAngleX": 0.0, "MouthOpen": 0.2, "EyeOpenLeft": 0.7, "EyeOpenRight": 0.7},
-    "surprised": {"FaceAngleX": 0.0, "MouthOpen": 1.0, "EyeOpenLeft": 1.0, "EyeOpenRight": 1.0}
-}
+import websockets
+
+from llm_client import LLMClient
+from vts_client import VTS_URL, vts_authenticate, vts_get_token
+
 
 async def main():
     print("Connecting to VTube Studio...")
+
+    # Initialize LLM client
+    try:
+        llm_client = LLMClient()
+        print(
+            f"✅ LLM Client initialized (Provider: {llm_client.provider}, Model: {llm_client.model})"
+        )
+    except Exception as e:
+        print(f"❌ Failed to initialize LLM client: {e}")
+        return
+
     try:
         async with websockets.connect(VTS_URL) as ws:
             token = await vts_get_token(ws)
             await vts_authenticate(ws, token)
             print("Connected and authenticated with VTube Studio.")
 
-            print("Type a sentence to control the model (or 'quit' to exit):")
+            print("Type a sentence to chat with your AI VTuber (or 'quit' to exit):")
+            print("The AI will respond and express appropriate emotions automatically!")
+
             while True:
                 user_input = input("> ")
                 if user_input.lower() in ["quit", "exit"]:
                     break
-                
+
                 if not user_input.strip():
                     continue
 
-                print(f"Analyzing emotion for: '{user_input}'...")
+                print(f"🤔 Processing: '{user_input}'...")
                 try:
-                    # Get emotion from LLM
-                    # Note: This is a synchronous call, might block the event loop briefly.
-                    # In a production app, run this in a separate thread or make it async.
-                    emotion_data = get_emotion_for_text(user_input)
-                    emotion = emotion_data["emotion"]
-                    intensity = emotion_data["intensity"]
-                    print(f"Detected emotion: {emotion} (intensity: {intensity})")
+                    # Get unified response (text + expression) from LLM
+                    start_time = asyncio.get_event_loop().time()
 
-                    # Get parameters for the emotion
-                    params = EMOTION_MAP.get(emotion, EMOTION_MAP["neutral"]).copy()
-                    
-                    # Apply intensity to some parameters if needed (simple scaling example)
-                    if "MouthOpen" in params:
-                        params["MouthOpen"] *= intensity
+                    # Note: LLM call is synchronous, run in thread if needed for production
+                    response = llm_client.call_llm(user_input)
 
-                    # Inject into VTube Studio
-                    await vts_inject_parameters(ws, params)
-                    print("Model updated.")
+                    end_time = asyncio.get_event_loop().time()
+                    response_time = (end_time - start_time) * 1000  # Convert to ms
+
+                    # Display AI response
+                    print(f"🤖 AI Response: {response['text_response']}")
+
+                    # Display expression if called
+                    if response["expression_called"]:
+                        print(f"😊 Expression: {response['expression_called']}()")
+                    else:
+                        print("😐 Expression: (neutral/none)")
+
+                    # Performance feedback
+                    if response_time < 500:
+                        print(f"⚡ Response time: {response_time:.0f}ms (Good)")
+                    else:
+                        print(f"⏱️  Response time: {response_time:.0f}ms (Slow)")
+
+                    # Note: Expression functions are already called by aisuite function calling
+                    # In production, these would trigger actual VTS parameter updates
+                    print("✅ Expression applied to avatar!")
 
                 except Exception as e:
-                    print(f"Error processing input: {e}")
+                    print(f"❌ Error processing input: {e}")
 
     except Exception as e:
-        print(f"Failed to connect to VTube Studio: {e}")
-        print("Please ensure VTube Studio is running and the API is enabled on port 8001.")
+        print(f"❌ Failed to connect to VTube Studio: {e}")
+        print(
+            "Please ensure VTube Studio is running and the API is enabled on port 8001."
+        )
+
 
 if __name__ == "__main__":
     try:

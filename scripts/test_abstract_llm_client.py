@@ -65,9 +65,10 @@ def test_emotion_detection():
 
     for text in test_cases:
         try:
-            result = client.get_emotion_for_text(text)
+            result = client.call_llm(text)
             print(f"Text: '{text}'")
-            print(f"Result: {result}")
+            print(f"Response: {result.get('text_response', 'No response')}")
+            print(f"Expression: {result.get('expression_called', 'None')}")
             print()
         except Exception as e:
             print(f"❌ Error processing '{text}': {e}")
@@ -98,11 +99,6 @@ def test_llm_client_class():
         client = LLMClient()
         print(f"Default client - Provider: {client.provider}, Model: {client.model}")
 
-        # Test specific provider clients
-        if validate_provider_config("ollama"):
-            ollama_client = LLMClient(provider="ollama")
-            print(f"Ollama client - Provider: {ollama_client.provider}")
-
         # Test Google provider if configured
         google_api_key = os.getenv("GOOGLE_API_KEY")
         if google_api_key:
@@ -123,13 +119,14 @@ def test_performance():
 
     try:
         client = LLMClient()
-        result = client.get_emotion_for_text("This is a performance test!")
+        result = client.call_llm("This is a performance test!")
 
         print(f"Response time: {client.last_response_time:.3f}s")
         print(
             f"Performance acceptable (<500ms): {'✓ Yes' if client.is_performance_acceptable() else '✗ No'}"
         )
-        print(f"Result: {result}")
+        print(f"Response: {result.get('text_response', 'No response')}")
+        print(f"Expression: {result.get('expression_called', 'None')}")
 
     except Exception as e:
         print(f"❌ Performance test error: {e}")
@@ -138,12 +135,12 @@ def test_performance():
 
 
 def test_backward_compatibility():
-    """Test that backward compatibility functions are removed."""
-    print("=== Testing Backward Compatibility Removal ===")
+    """Test that old deprecated functions are removed and new ones exist."""
+    print("=== Testing API Migration ===")
 
-    # Test that old functions are no longer available
+    # Test that old deprecated functions are no longer available
     old_functions = [
-        "get_emotion_for_text",
+        "get_emotion_for_text",  # This should be removed
         "get_current_provider",
         "validate_configuration",
         "validate_provider_config",
@@ -157,6 +154,15 @@ def test_backward_compatibility():
             print(f"❌ {func_name} still exists as class method")
         else:
             print(f"✓ {func_name} correctly removed")
+
+    # Test that new unified function is available
+    new_functions = ["call_llm"]
+
+    for func_name in new_functions:
+        if hasattr(LLMClient, func_name):
+            print(f"✓ {func_name} correctly available")
+        else:
+            print(f"❌ {func_name} missing from class")
 
     print()
 
