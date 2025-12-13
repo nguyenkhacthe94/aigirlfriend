@@ -678,6 +678,7 @@ lsof -i :8001
 
 - Click "Allow" in VTube Studio when prompted
 - Token saved to `vts_token.txt` for future use
+- If authentication fails after denying the plugin request, delete `vts_token.txt` and try again
 
 ### Slow Emotion Detection
 
