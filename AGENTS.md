@@ -172,11 +172,6 @@ async def set_params(ws, params): ...
 
 <!-- DOMAIN_CONTEXT:START -->
 
-## Domain-Specific Contexttest coverage
-
-- Test in VTube Studio with actual avatar
-- Verify <500ms latency for emotion detection
-
 ## Domain-Specific Context
 
 ### Emotion System
