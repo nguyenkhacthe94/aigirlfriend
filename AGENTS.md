@@ -41,7 +41,7 @@ python scripts/test/test_comprehensive_validation.py
 # No formal test suite - manual testing preferred for real-time interactivity
 ```
 
-**Note:** All debugging, helper, and sanity test scripts are located in the `scripts/` folder and are intended for development use only. These scripts should never be used in production environments.
+**Note:** Debugging scripts are located in the `scripts/debug` folder, helper scripts in the `scripts/helper` folder, and test scripts in the `scripts/test` folder. All are intended for development use only and should never be used in production environments.
 
 <!-- BUILD_TEST:END -->
 
@@ -169,7 +169,9 @@ async def set_params(ws, params): ...
 - **Fast iteration** over test coverage
 - Test in VTube Studio with actual avatar
 - Verify <500ms latency for emotion detection
-- **All debugging, helper, and sanity test scripts must be placed in the `scripts/test` folder**
+- **Debugging scripts must be placed in the `scripts/debug` folder**
+- **Helper scripts must be placed in the `scripts/helper` folder**
+- **Test scripts must be placed in the `scripts/test` folder**
 - **Scripts in the `scripts/` folder are development-only and should never be used in production**
 <!-- ARCHITECTURE:END -->
 
