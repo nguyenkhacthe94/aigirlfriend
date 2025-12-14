@@ -21,6 +21,7 @@ class AudioPlayer:
         self.is_speaking = False  # Replaces signals.AI_speaking
         self.terminate = False    # Control flag for the run loop
         self.currently_playing = None  # Track currently playing file for deletion
+        self.queued_files = set()  # Track files that have been queued to avoid duplicates
 
         # API wrapper for compatibility if needed, or just methods on self
         self.api = self.API(self)
@@ -42,7 +43,7 @@ class AudioPlayer:
 
     def _scan_for_new_audio_files(self):
         """
-        Scan the audio directory for new .wav files and queue them for playback.
+        Scan the audio directory for new .wav files that haven't been queued yet.
         Returns the list of newly found files.
         """
         if not os.path.exists(self.audio_dir):
@@ -52,8 +53,8 @@ class AudioPlayer:
         for file in os.listdir(self.audio_dir):
             if file.lower().endswith(".wav"):
                 file_path = os.path.join(self.audio_dir, file)
-                # Only add if not already queued or currently playing
-                if file_path != self.currently_playing:
+                # Only add if not already queued and not currently playing
+                if file_path not in self.queued_files and file_path != self.currently_playing:
                     new_files.append(file_path)
 
         return new_files
@@ -127,6 +128,8 @@ class AudioPlayer:
                 p.terminate()
             if wf:
                 wf.close()
+            # Small delay to ensure all file handles are released (Windows)
+            time.sleep(0.05)
 
     async def run(self):
         print("AudioPlayer service started.")
@@ -147,6 +150,7 @@ class AudioPlayer:
                 new_files = self._scan_for_new_audio_files()
                 for file_path in new_files:
                     self.play_queue.put(file_path)
+                    self.queued_files.add(file_path)  # Track as queued
                     print(f"Detected new audio file: {os.path.basename(file_path)}")
                 last_scan_time = current_time
 
@@ -161,6 +165,7 @@ class AudioPlayer:
                 # Check if file still exists (might have been deleted)
                 if not os.path.exists(file_path):
                     print(f"Audio file no longer exists: {file_path}")
+                    self.queued_files.discard(file_path)  # Remove from queued set
                     continue
 
                 print(f"Playing: {os.path.basename(file_path)}")
@@ -172,16 +177,33 @@ class AudioPlayer:
                     await asyncio.to_thread(self._play_audio_blocking, file_path)
 
                     # After successful playback, delete the file
-                    try:
-                        os.remove(file_path)
-                        print(f"Deleted: {os.path.basename(file_path)}")
-                    except Exception as e:
-                        print(f"Error deleting file {file_path}: {e}")
+                    # Add small delay and retry logic for Windows file lock issues
+                    deleted = False
+                    for attempt in range(3):
+                        try:
+                            await asyncio.sleep(0.1)  # Small delay to ensure file handles are released
+                            os.remove(file_path)
+                            print(f"Deleted: {os.path.basename(file_path)}")
+                            deleted = True
+                            break
+                        except PermissionError as e:
+                            if attempt < 2:
+                                print(f"Deletion attempt {attempt + 1} failed, retrying...")
+                                await asyncio.sleep(0.5)  # Wait longer before retry
+                            else:
+                                print(f"Error deleting file after 3 attempts: {e}")
+                        except Exception as e:
+                            print(f"Error deleting file {file_path}: {e}")
+                            break
+
+                    self.queued_files.discard(file_path)  # Remove from queued set
 
                 except Exception as e:
                     print(f"Error playing audio file: {e}")
                     import traceback
                     traceback.print_exc()
+                    # Remove from queued set on error
+                    self.queued_files.discard(file_path)
 
                 self.is_speaking = False
                 self.currently_playing = None

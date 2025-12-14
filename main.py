@@ -15,6 +15,10 @@ async def main():
         print(
             f"✅ LLM Client initialized (Provider: {llm_client.provider}, Model: {llm_client.model})"
         )
+
+        # Start the audio player
+        await llm_client.start_audio_player()
+
     except Exception as e:
         print(f"❌ Failed to initialize LLM client: {e}")
         return
@@ -85,11 +89,18 @@ async def main():
                 except Exception as e:
                     print(f"❌ Error processing input: {e}")
 
+            # Cleanup
+            print("\nShutting down...")
+            await llm_client.stop_audio_player()
+
     except Exception as e:
         print(f"❌ Failed to connect to VTube Studio: {e}")
         print(
             "Please ensure VTube Studio is running and the API is enabled on port 8001."
         )
+        # Cleanup on error
+        if 'llm_client' in locals():
+            await llm_client.stop_audio_player()
 
 
 if __name__ == "__main__":

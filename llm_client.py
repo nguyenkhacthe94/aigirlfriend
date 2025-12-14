@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import sys
@@ -85,16 +86,13 @@ class LLMClient:
     def _setup_audio_player(self):
         """Initialize the audio player and register control tools."""
         self.audio_player = AudioPlayer()
-        # Start the audio player run loop in the background
-        # Note: In a real app we might want to manage this lifecycle better
-        # For now, we assume this client lives as long as the app
-        asyncio.create_task(self.audio_player.run())
+        self.audio_player_task = None  # Will be started in start_audio_player()
 
         # Define wrapper functions for LLM tools
         def play_music(song_name: str = "__ALL__"):
             """
             Play music or audio files.
-            
+
             Args:
                 song_name: The name of the song to play. Use "__ALL__" to play all songs in queue.
                            Available songs: {self.audio_player.api.get_audio_list()}
@@ -114,6 +112,21 @@ class LLMClient:
         global EXPRESSION_TOOLS
         EXPRESSION_TOOLS.append(play_music)
         EXPRESSION_TOOLS.append(stop_music)
+
+    async def start_audio_player(self):
+        """Start the audio player background task. Must be called from async context."""
+        if self.audio_player_task is None:
+            self.audio_player_task = asyncio.create_task(self.audio_player.run())
+            print("🔊 Audio player started")
+        return self.audio_player_task
+
+    async def stop_audio_player(self):
+        """Stop the audio player background task."""
+        if self.audio_player_task:
+            self.audio_player.stop()
+            await self.audio_player_task
+            self.audio_player_task = None
+            print("🔇 Audio player stopped")
 
 
     def _load_prompt(self, prompt_name: str) -> str:
