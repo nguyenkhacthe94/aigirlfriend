@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import thread
 
 import websockets
 
@@ -17,7 +18,6 @@ async def main():
         )
 
         # Start the audio player
-        await llm_client.start_audio_player()
 
     except Exception as e:
         print(f"❌ Failed to initialize LLM client: {e}")
@@ -70,6 +70,9 @@ async def main():
                             print(
                                 f"🔊 Audio: {os.path.basename(audio_file)} ({audio_size} bytes)"
                             )
+                            task = llm_client.start_audio_player()
+                            _run_async_expression(task)
+                            await llm_client.stop_audio_player()
                         else:
                             print(
                                 f"🔇 Audio: {os.path.basename(audio_file)} (file missing)"
@@ -99,8 +102,39 @@ async def main():
             "Please ensure VTube Studio is running and the API is enabled on port 8001."
         )
         # Cleanup on error
-        if 'llm_client' in locals():
+        if "llm_client" in locals():
             await llm_client.stop_audio_player()
+
+
+def _run_async_expression(async_func):
+    """Helper function to run async expression functions in a new event loop."""
+    import threading
+
+    def run_in_thread():
+        try:
+            asyncio.run(async_func)
+        except Exception as e:
+            print(f"Warning: Could not execute expression function: {e}")
+
+    try:
+        # Try to get the current event loop
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If we're already in an async context, run in a separate thread
+            # to avoid blocking the current event loop
+            thread = threading.Thread(target=run_in_thread)
+            thread.start()
+            thread.join()
+            return
+    except RuntimeError:
+        # No event loop is running, create a new one
+        pass
+
+    # Create and run a new event loop
+    try:
+        asyncio.run(async_func())
+    except Exception as e:
+        print(f"Warning: Could not execute expression function: {e}")
 
 
 if __name__ == "__main__":

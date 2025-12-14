@@ -1,5 +1,4 @@
 import asyncio
-import asyncio
 import json
 import os
 import sys
@@ -132,7 +131,6 @@ class LLMClient:
             await self.audio_player_task
             self.audio_player_task = None
             print("🔇 Audio player stopped")
-
 
     def _load_prompt(self, prompt_name: str) -> str:
         """Load prompt content from prompts/ folder."""
