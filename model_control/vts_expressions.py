@@ -36,7 +36,7 @@ async def get_connection():
         print("Connected and authenticated.")
     return _ws
 
-def smile():
+async def smile():
     """
     Display a gentle, warm smile expression on the avatar's face.
 
@@ -60,7 +60,7 @@ def smile():
     await move_eye_open_right(ws, 1.0)
 
 
-def laugh():
+async def laugh():
     """
     Display intense joy, laughter, or overwhelming happiness expression.
 
@@ -91,7 +91,7 @@ def laugh():
         await move_mouth_open(ws, 1.0)
 
 
-def angry():
+async def angry():
     """
     Display anger, frustration, or irritation expression.
 
@@ -116,7 +116,7 @@ def angry():
     await move_mouth_smile(ws, 0.0)
 
 
-def blink():
+async def blink():
     """
     Perform a simple blink expression for natural movement.
 
@@ -138,7 +138,7 @@ def blink():
     await move_eye_open_right(ws, 1.0)
 
 
-def wow():
+async def wow():
     """
     Display amazement, astonishment, or being impressed expression.
 
@@ -164,7 +164,7 @@ def wow():
     await move_eye_open_right(ws, 1.0)
 
 
-def agree():
+async def agree():
     """
     Show agreement, approval, or positive acknowledgment.
 
@@ -209,7 +209,7 @@ async def disagree():
     await asyncio.sleep(0.15)
     await move_face_angle_x(ws, 0.0)
 
-def yap():
+async def yap():
     """
     Show active talking, chatting, or animated conversation expression.
 
@@ -232,7 +232,7 @@ def yap():
         await asyncio.sleep(0.1)
 
 
-def shy():
+async def shy():
     """
     Display shyness, bashfulness, or timid expression.
 
@@ -255,7 +255,7 @@ def shy():
     await move_face_angle_y(ws, -10.0)
 
 
-def sad():
+async def sad():
     """
     Display sadness, melancholy, or disappointment expression.
 
