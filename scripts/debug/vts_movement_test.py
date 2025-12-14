@@ -3,6 +3,9 @@ import asyncio
 import sys
 import os
 
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from model_control.vts_expressions import (
     smile, laugh, angry, blink, wow, agree, disagree, yap, shy, sad, love, hello
 )

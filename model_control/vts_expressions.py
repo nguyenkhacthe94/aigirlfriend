@@ -11,11 +11,7 @@ from model_control.vts_movement import (
     move_cheek_puff,
     move_face_angle_y,
     move_face_angle_y,
-    move_face_angle_x,
-    move_hand_left_found,
-    move_hand_left_position_y,
-    move_hand_left_position_x,
-    move_hand_left_angle_z # For waving
+    move_face_angle_x
 )
 
 # Global WebSocket connection
@@ -47,6 +43,11 @@ async def laugh():
     await move_mouth_open(ws, 1.0)
     await move_eye_open_left(ws, 0.0) # Happy eyes often squint
     await move_eye_open_right(ws, 0.0)
+    for _ in range(5):
+        await asyncio.sleep(0.15)
+        await move_mouth_open(ws, 0.0)
+        await asyncio.sleep(0.15)
+        await move_mouth_open(ws, 1.0)
 
 async def angry():
     print("Expression: Angry")
@@ -105,13 +106,14 @@ async def shy():
     print("Expression: Shy")
     ws = await get_connection()
     await move_cheek_puff(ws, 1.0)
-    await move_face_angle_y(ws, -10.0) # Look down slightly
+    await move_face_angle_y(ws, -10.0)
 
 async def sad():
     print("Expression: Sad")
     ws = await get_connection()
     await move_mouth_smile(ws, 0.0)
-    await move_brows(ws, 1.0) # Often raised brows for sad
+    await move_face_angry(ws, 1.0)
+    await move_brows(ws, 0.0)
     await move_face_angle_y(ws, -10.0)
 
 async def love():
@@ -125,36 +127,9 @@ async def hello():
     print("Expression: Hello")
     ws = await get_connection()
     
-    # 1. Activate Hand
-    await move_hand_left_found(ws, 1.0)
-    await move_hand_left_position_y(ws, 0.5) # Raise arm
-    await move_hand_left_position_x(ws, -0.5) # Position slightly left
-
-    # 2. Define sub-routines
-    async def do_yap():
-        # Yap for ~1 second (e.g. 5 cycle of 0.2s)
-        for _ in range(5):
-            await move_mouth_open(ws, 0.8)
-            await asyncio.sleep(0.1)
-            await move_mouth_open(ws, 0.0)
-            await asyncio.sleep(0.1)
-
-    async def do_wave():
-        # Wave left/right for ~1 second
-        # Start at neutral rotation
-        for _ in range(3):
-            # Wave Out
-            await move_hand_left_angle_z(ws, -20.0)
-            await asyncio.sleep(0.15)
-            # Wave In
-            await move_hand_left_angle_z(ws, 20.0)
-            await asyncio.sleep(0.15)
-        # Reset rotation
-        await move_hand_left_angle_z(ws, 0.0)
-
-    # 3. Run concurrently
-    await asyncio.gather(do_yap(), do_wave())
-
-    # 4. Cleanup/Reset Hand (Optional, but good practice to allow it to disappear)
-    # await asyncio.sleep(0.5)
-    # await move_hand_left_found(ws, 0.0)
+    # Just yap (mouth movement) without hand wave
+    for _ in range(3):
+        await move_mouth_open(ws, 0.8)
+        await asyncio.sleep(0.2)
+        await move_mouth_open(ws, 0.0)
+        await asyncio.sleep(0.2)
