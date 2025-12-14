@@ -12,7 +12,7 @@ import asyncio
 import argparse
 import websockets
 from vts_client import vts_get_token, vts_authenticate, vts_inject_parameters, VTS_URL
-from llm_client import get_emotion_for_text
+from llm_client import LLMClient
 from models import get_model, list_models
 
 
@@ -23,6 +23,14 @@ async def main(model_name: str = "chino11"):
     Args:
         model_name: Name of the Live2D model to control
     """
+    # Initialize LLM client for unified responses
+    try:
+        llm_client = LLMClient()
+        print(f"LLM Client initialized: {llm_client.provider} - {llm_client.model}")
+    except Exception as e:
+        print(f"Error initializing LLM client: {e}")
+        return
+    
     # Load the specified model configuration
     try:
         model = get_model(model_name)
@@ -50,13 +58,41 @@ async def main(model_name: str = "chino11"):
                 if not user_input.strip():
                     continue
 
-                print(f"Analyzing emotion for: '{user_input}'...")
+                print(f"Getting response for: '{user_input}'...")
                 try:
-                    # Get emotion from LLM
-                    emotion_data = get_emotion_for_text(user_input)
-                    emotion = emotion_data["emotion"]
-                    intensity = emotion_data["intensity"]
-                    print(f"Detected emotion: {emotion} (intensity: {intensity:.2f})")
+                    # Get unified response from LLM
+                    response = llm_client.call_llm(user_input)
+                    text_response = response.get("text_response", "")
+                    expression_called = response.get("expression_called")
+                    
+                    print(f"AI Response: {text_response}")
+                    if expression_called:
+                        print(f"Expression called: {expression_called}")
+                    
+                    # For backward compatibility with emotion-based model system,
+                    # map expression functions to basic emotions
+                    expression_to_emotion = {
+                        "smile": ("happy", 0.6),
+                        "laugh": ("happy", 1.0),
+                        "angry": ("angry", 0.8),
+                        "sad": ("sad", 0.7),
+                        "wow": ("surprised", 0.8),
+                        "shy": ("neutral", 0.3),  # shy doesn't map well to basic emotions
+                        "love": ("happy", 0.9),
+                        "agree": ("neutral", 0.4),
+                        "disagree": ("angry", 0.3),
+                        "yap": ("neutral", 0.5),
+                        "blink": ("neutral", 0.1),
+                    }
+                    
+                    # Use expression if available, otherwise default to neutral
+                    if expression_called and expression_called in expression_to_emotion:
+                        emotion, intensity = expression_to_emotion[expression_called]
+                        print(f"Mapped to emotion: {emotion} (intensity: {intensity:.2f})")
+                    else:
+                        emotion = "neutral"
+                        intensity = 0.5
+                        print(f"Using default: {emotion} (intensity: {intensity:.2f})")
 
                     # Get parameters from model with intensity scaling
                     if emotion in model.emotions:
