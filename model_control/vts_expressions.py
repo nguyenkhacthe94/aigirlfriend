@@ -326,14 +326,36 @@ async def hello():
 
 def _run_async_expression(async_func):
     """Helper function to run async expression functions in a new event loop."""
+    import threading
+
+    def run_in_thread():
+        # Create a separate connection for this thread to avoid event loop conflicts
+        global _ws
+        original_ws = _ws
+        _ws = None  # Reset so get_connection() creates a new one
+        try:
+            asyncio.run(async_func())
+        except Exception as e:
+            print(f"Warning: Could not execute expression function: {e}")
+        finally:
+            # Close the thread-specific connection
+            if _ws:
+                try:
+                    asyncio.run(_ws.close())
+                except:
+                    pass
+            # Restore the original connection
+            _ws = original_ws
+
     try:
         # Try to get the current event loop
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            # If we're already in an async context, create a task
-            task = asyncio.create_task(async_func())
-            # Since we can't wait in a sync function, we'll schedule it
-            # This is a compromise - the function will execute but we won't wait
+            # If we're already in an async context, run in a separate thread
+            # to avoid blocking the current event loop
+            thread = threading.Thread(target=run_in_thread)
+            thread.start()
+            thread.join()
             return
     except RuntimeError:
         # No event loop is running, create a new one
