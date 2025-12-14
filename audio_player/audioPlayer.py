@@ -20,6 +20,7 @@ class AudioPlayer:
         self.paused = False
         self.is_speaking = False  # Replaces signals.AI_speaking
         self.terminate = False    # Control flag for the run loop
+        self.currently_playing = None  # Track currently playing file for deletion
 
         # API wrapper for compatibility if needed, or just methods on self
         self.api = self.API(self)
@@ -30,20 +31,32 @@ class AudioPlayer:
         if not self.enabled:
             return
 
-        # Find all audio files in the audio directory
-        self.audio_files = []
+        # Set up audio directory
         self.audio_dir = os.path.join(os.getcwd(), "audio")
-        
-        if os.path.exists(self.audio_dir):
-            for dirpath, dirnames, filenames in os.walk(self.audio_dir):
-                for file in filenames:
-                    # Only support WAV for now to avoid pydub/audioop issues on Python 3.13
-                    if file.lower().endswith(".wav"):
-                        audio = self.Audio(file, os.path.join(dirpath, file))
-                        self.audio_files.append(audio)
-                        print(f"Found audio: {file}")
+
+        if not os.path.exists(self.audio_dir):
+            print(f"Creating audio directory at {self.audio_dir}")
+            os.makedirs(self.audio_dir)
         else:
-            print(f"Warning: Audio directory not found at {self.audio_dir}")
+            print(f"Audio directory: {self.audio_dir}")
+
+    def _scan_for_new_audio_files(self):
+        """
+        Scan the audio directory for new .wav files and queue them for playback.
+        Returns the list of newly found files.
+        """
+        if not os.path.exists(self.audio_dir):
+            return []
+
+        new_files = []
+        for file in os.listdir(self.audio_dir):
+            if file.lower().endswith(".wav"):
+                file_path = os.path.join(self.audio_dir, file)
+                # Only add if not already queued or currently playing
+                if file_path != self.currently_playing:
+                    new_files.append(file_path)
+
+        return new_files
 
     def _play_audio_blocking(self, audio_path):
         """
@@ -117,73 +130,92 @@ class AudioPlayer:
 
     async def run(self):
         print("AudioPlayer service started.")
+        print("Monitoring audio directory for new .wav files...")
+
+        last_scan_time = 0
+        scan_interval = 1.0  # Scan every 1 second
+
         while not self.terminate:
             if not self.enabled:
                 await asyncio.sleep(1)
                 continue
 
+            current_time = asyncio.get_event_loop().time()
+
+            # Scan for new audio files periodically
+            if current_time - last_scan_time >= scan_interval:
+                new_files = self._scan_for_new_audio_files()
+                for file_path in new_files:
+                    self.play_queue.put(file_path)
+                    print(f"Detected new audio file: {os.path.basename(file_path)}")
+                last_scan_time = current_time
+
             # If we are not currently playing audio, unset the abort flag
-            self.abort_flag = False
+            if not self.is_speaking:
+                self.abort_flag = False
 
             # Check if there are any audio files to play
             if self.play_queue.qsize() > 0:
-                file_name = self.play_queue.get()
-                print(f"Request to play: {file_name}")
-                
-                # Special command to play all
-                if file_name == "__ALL__":
-                    print("Queueing all songs...")
-                    for audio in self.audio_files:
-                         self.play_queue.put(audio.file_name)
+                file_path = self.play_queue.get()
+
+                # Check if file still exists (might have been deleted)
+                if not os.path.exists(file_path):
+                    print(f"Audio file no longer exists: {file_path}")
                     continue
 
-                found = False
-                for audio in self.audio_files:
-                    if audio.file_name == file_name:
-                        found = True
-                        print(f"Playing {audio.path}")
-                        self.is_speaking = True
+                print(f"Playing: {os.path.basename(file_path)}")
+                self.is_speaking = True
+                self.currently_playing = file_path
 
-                        try:
-                            # Run the entire playback in a background thread to avoid blocking
-                            await asyncio.to_thread(self._play_audio_blocking, audio.path)
-                        except Exception as e:
-                            print(f"Error playing audio file: {e}")
-                            import traceback
-                            traceback.print_exc()
+                try:
+                    # Run the entire playback in a background thread to avoid blocking
+                    await asyncio.to_thread(self._play_audio_blocking, file_path)
 
-                        self.is_speaking = False
-                        break
-                
-                if not found:
-                    print(f"Audio file not found: {file_name}")
+                    # After successful playback, delete the file
+                    try:
+                        os.remove(file_path)
+                        print(f"Deleted: {os.path.basename(file_path)}")
+                    except Exception as e:
+                        print(f"Error deleting file {file_path}: {e}")
+
+                except Exception as e:
+                    print(f"Error playing audio file: {e}")
+                    import traceback
+                    traceback.print_exc()
+
+                self.is_speaking = False
+                self.currently_playing = None
 
             await asyncio.sleep(0.1)
 
     def stop(self):
         self.terminate = True
 
-    class Audio:
-        def __init__(self, file_name, path):
-            self.file_name = file_name
-            self.path = path
-
     class API:
         def __init__(self, outer):
             self.outer = outer
 
         def get_audio_list(self):
+            """Get list of current .wav files in the audio directory"""
+            if not os.path.exists(self.outer.audio_dir):
+                return []
+
             filenames = []
-            for audio in self.outer.audio_files:
-                filenames.append(audio.file_name)
+            for file in os.listdir(self.outer.audio_dir):
+                if file.lower().endswith(".wav"):
+                    filenames.append(file)
             return filenames
 
-        def play_audio(self, file_name):
-            self.stop_playing() # Stop current before playing new
-            self.outer.play_queue.put(file_name)
-            
-        def play_all(self):
-            self.outer.play_queue.put("__ALL__")
+        def play_audio(self, file_path):
+            """Manually queue an audio file for playback"""
+            # If file_path is just a filename, construct full path
+            if not os.path.isabs(file_path):
+                file_path = os.path.join(self.outer.audio_dir, file_path)
+
+            if os.path.exists(file_path):
+                self.outer.play_queue.put(file_path)
+            else:
+                print(f"Audio file not found: {file_path}")
 
         def pause_audio(self):
             self.outer.paused = True
