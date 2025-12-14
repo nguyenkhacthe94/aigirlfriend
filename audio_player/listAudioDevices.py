@@ -1,23 +1,40 @@
 import pyaudio
 
 py_audio = pyaudio.PyAudio()
-info = py_audio.get_host_api_info_by_index(0)
 
-# List all devices
+print("=" * 60)
+print("PyAudio Device List (Global Indices)")
+print("=" * 60)
+print("\nUse these indices for OUTPUT_DEVICE_INDEX in .env file\n")
 
-# Mics
-print("Microphones:")
-for i in range(0, info.get('deviceCount')):
+# List all devices using GLOBAL device index
+device_count = py_audio.get_device_count()
+
+# Microphones
+print("MICROPHONES (Input Devices):")
+print("-" * 60)
+for i in range(device_count):
+    device_info = py_audio.get_device_info_by_index(i)
     # Check number of input channels
-    # (If there is at least 1 input channel, then it is suitable as a microphone)
-    if py_audio.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels') > 0:
-        print(str(i) + " " + py_audio.get_device_info_by_host_api_device_index(0, i).get('name'))
+    if device_info.get('maxInputChannels') > 0:
+        default_marker = " [DEFAULT]" if i == py_audio.get_default_input_device_info()['index'] else ""
+        print(f"  {i:2d} - {device_info.get('name')}{default_marker}")
+
+print("\n")
 
 # Speakers
-print("Speakers:")
-for i in range(0, info.get('deviceCount')):
-    # Check number of input channels
-    # (If there is at least 1 input channel, then it is suitable as a microphone)
-    if py_audio.get_device_info_by_host_api_device_index(0, i).get('maxOutputChannels') > 0:
-        print(str(i) + " " + py_audio.get_device_info_by_host_api_device_index(0, i).get('name'))
+print("SPEAKERS (Output Devices):")
+print("-" * 60)
+for i in range(device_count):
+    device_info = py_audio.get_device_info_by_index(i)
+    # Check number of output channels
+    if device_info.get('maxOutputChannels') > 0:
+        default_marker = " [DEFAULT]" if i == py_audio.get_default_output_device_info()['index'] else ""
+        print(f"  {i:2d} - {device_info.get('name')}{default_marker}")
+
+print("\n" + "=" * 60)
+print(f"Total devices found: {device_count}")
+print("=" * 60)
+
+py_audio.terminate()
 
