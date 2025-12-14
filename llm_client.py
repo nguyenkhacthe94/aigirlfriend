@@ -18,6 +18,8 @@ from model_control.vts_expressions import shy_sync as shy
 from model_control.vts_expressions import smile_sync as smile
 from model_control.vts_expressions import wow_sync as wow
 from model_control.vts_expressions import yap_sync as yap
+from audio_player.audioPlayer import AudioPlayer
+
 
 # Configuration Constants
 DEFAULT_PROVIDER = "google"
@@ -63,7 +65,42 @@ class LLMClient:
         self._client: Optional[genai.Client] = None
         self._project_root = os.path.dirname(os.path.abspath(__file__))
 
+        self._setup_audio_player()
         self._validate_and_setup()
+
+    def _setup_audio_player(self):
+        """Initialize the audio player and register control tools."""
+        self.audio_player = AudioPlayer()
+        # Start the audio player run loop in the background
+        # Note: In a real app we might want to manage this lifecycle better
+        # For now, we assume this client lives as long as the app
+        asyncio.create_task(self.audio_player.run())
+
+        # Define wrapper functions for LLM tools
+        def play_music(song_name: str = "__ALL__"):
+            """
+            Play music or audio files.
+            
+            Args:
+                song_name: The name of the song to play. Use "__ALL__" to play all songs in queue.
+                           Available songs: {self.audio_player.api.get_audio_list()}
+            """
+            print(f"🎵 LLM requested to play music: {song_name}")
+            if song_name == "__ALL__":
+                self.audio_player.api.play_all()
+            else:
+                self.audio_player.api.play_audio(song_name)
+
+        def stop_music():
+            """Stop currently playing music."""
+            print("🛑 LLM requested to stop music")
+            self.audio_player.api.stop_playing()
+
+        # Add to available tools
+        global EXPRESSION_TOOLS
+        EXPRESSION_TOOLS.append(play_music)
+        EXPRESSION_TOOLS.append(stop_music)
+
 
     def _load_prompt(self, prompt_name: str) -> str:
         """Load prompt content from prompts/ folder."""
