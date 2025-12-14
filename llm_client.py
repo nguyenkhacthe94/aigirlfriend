@@ -7,19 +7,17 @@ from typing import Any, Dict, Optional
 from google import genai
 from google.genai import types
 
-from model_control.vts_expressions import (
-    agree,
-    angry,
-    blink,
-    disagree,
-    laugh,
-    love,
-    sad,
-    shy,
-    smile,
-    wow,
-    yap,
-)
+from model_control.vts_expressions import agree_sync as agree
+from model_control.vts_expressions import angry_sync as angry
+from model_control.vts_expressions import blink_sync as blink
+from model_control.vts_expressions import disagree_sync as disagree
+from model_control.vts_expressions import laugh_sync as laugh
+from model_control.vts_expressions import love_sync as love
+from model_control.vts_expressions import sad_sync as sad
+from model_control.vts_expressions import shy_sync as shy
+from model_control.vts_expressions import smile_sync as smile
+from model_control.vts_expressions import wow_sync as wow
+from model_control.vts_expressions import yap_sync as yap
 
 # Configuration Constants
 DEFAULT_PROVIDER = "google"
@@ -357,11 +355,20 @@ class LLMClient:
             # Find and call the function from EXPRESSION_TOOLS
             for tool_func in EXPRESSION_TOOLS:
                 if tool_func.__name__ == function_name:
-                    # Execute the sync function directly
+                    # Execute the synchronous wrapper function directly
+                    print(f"Executing expression function: {function_name}")
                     tool_func()
+                    print(f"Successfully executed: {function_name}")
                     break
+            else:
+                print(
+                    f"Warning: Function '{function_name}' not found in EXPRESSION_TOOLS"
+                )
         except Exception as e:
             print(f"Warning: Could not execute function call: {e}")
+            import traceback
+
+            traceback.print_exc()
 
     @property
     def provider(self) -> str:
