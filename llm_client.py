@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import sys
@@ -9,6 +10,7 @@ from typing import Any, Dict, Optional
 from google import genai
 from google.genai import types
 
+from audio_player.audioPlayer import AudioPlayer
 from model_control.vts_expressions import agree_sync as agree
 from model_control.vts_expressions import angry_sync as angry
 from model_control.vts_expressions import blink_sync as blink
@@ -20,8 +22,6 @@ from model_control.vts_expressions import shy_sync as shy
 from model_control.vts_expressions import smile_sync as smile
 from model_control.vts_expressions import wow_sync as wow
 from model_control.vts_expressions import yap_sync as yap
-from audio_player.audioPlayer import AudioPlayer
-
 
 # Configuration Constants
 DEFAULT_PROVIDER = "google"
@@ -67,9 +67,13 @@ class LLMClient:
         self._temperature = float(os.getenv("LLM_TEMPERATURE", DEFAULT_TEMPERATURE))
 
         # TTS Configuration
-        self._tts_enabled = os.getenv("TTS_ENABLED", str(DEFAULT_TTS_ENABLED)).lower() == "true"
+        self._tts_enabled = (
+            os.getenv("TTS_ENABLED", str(DEFAULT_TTS_ENABLED)).lower() == "true"
+        )
         self._tts_voice = os.getenv("TTS_VOICE", DEFAULT_TTS_VOICE)
-        self._tts_cleanup_days = int(os.getenv("TTS_CLEANUP_DAYS", DEFAULT_TTS_CLEANUP_DAYS))
+        self._tts_cleanup_days = int(
+            os.getenv("TTS_CLEANUP_DAYS", DEFAULT_TTS_CLEANUP_DAYS)
+        )
         self._tts_audio_format = os.getenv("TTS_AUDIO_FORMAT", DEFAULT_TTS_AUDIO_FORMAT)
 
         # Google API configuration
@@ -94,7 +98,7 @@ class LLMClient:
         def play_music(song_name: str = "__ALL__"):
             """
             Play music or audio files.
-            
+
             Args:
                 song_name: The name of the song to play. Use "__ALL__" to play all songs in queue.
                            Available songs: {self.audio_player.api.get_audio_list()}
@@ -114,7 +118,6 @@ class LLMClient:
         global EXPRESSION_TOOLS
         EXPRESSION_TOOLS.append(play_music)
         EXPRESSION_TOOLS.append(stop_music)
-
 
     def _load_prompt(self, prompt_name: str) -> str:
         """Load prompt content from prompts/ folder."""
@@ -138,12 +141,16 @@ class LLMClient:
         """Validate TTS configuration parameters."""
         # Validate cleanup days
         if self._tts_cleanup_days < 0:
-            raise ValueError(f"TTS_CLEANUP_DAYS must be non-negative, got: {self._tts_cleanup_days}")
-        
+            raise ValueError(
+                f"TTS_CLEANUP_DAYS must be non-negative, got: {self._tts_cleanup_days}"
+            )
+
         # Validate audio format
         if self._tts_audio_format not in ["wav"]:
-            raise ValueError(f"TTS_AUDIO_FORMAT must be 'wav', got: {self._tts_audio_format}")
-        
+            raise ValueError(
+                f"TTS_AUDIO_FORMAT must be 'wav', got: {self._tts_audio_format}"
+            )
+
         # Create audio directory if TTS is enabled
         if self._tts_enabled:
             audio_dir = os.path.join(self._project_root, "audio")
@@ -288,10 +295,14 @@ class LLMClient:
 
                     # Parse the final response
                     final_text_response = final_response.text or ""
-                    
+
                     # Generate TTS audio if enabled
-                    audio_file = self.generate_tts_audio(final_text_response) if self._tts_enabled else None
-                    
+                    audio_file = (
+                        self.generate_tts_audio(final_text_response)
+                        if self._tts_enabled
+                        else None
+                    )
+
                     result = {
                         "text_response": final_text_response,
                         "expression_called": function_name,
@@ -310,8 +321,12 @@ class LLMClient:
                     )
                     # Fallback to just the function call result
                     fallback_text = f"*{function_name} expression*"
-                    audio_file = self.generate_tts_audio(fallback_text) if self._tts_enabled else None
-                    
+                    audio_file = (
+                        self.generate_tts_audio(fallback_text)
+                        if self._tts_enabled
+                        else None
+                    )
+
                     result = {
                         "text_response": fallback_text,  # Simple fallback
                         "expression_called": function_name,
@@ -321,8 +336,12 @@ class LLMClient:
             else:
                 # No function calls, just return the text response
                 text_response = response.text or ""
-                audio_file = self.generate_tts_audio(text_response) if self._tts_enabled else None
-                
+                audio_file = (
+                    self.generate_tts_audio(text_response)
+                    if self._tts_enabled
+                    else None
+                )
+
                 result = {
                     "text_response": text_response,
                     "expression_called": None,
@@ -479,30 +498,32 @@ class LLMClient:
             return True
         return self._last_response_time < 0.5
 
-    def generate_tts_audio(self, text: str, voice: Optional[str] = None) -> Optional[str]:
+    def generate_tts_audio(
+        self, text: str, voice: Optional[str] = None
+    ) -> Optional[str]:
         """Generate TTS audio from text and save to file.
-        
+
         Args:
             text: Text to convert to speech
             voice: Voice name to use (defaults to configured voice)
-            
+
         Returns:
             File path to generated audio file, or None if TTS disabled or failed
         """
         if not self._tts_enabled:
             return None
-            
+
         if not self._client:
             print("Warning: TTS client not initialized")
             return None
-            
+
         if not text or not text.strip():
             print("Warning: Empty text provided for TTS generation")
             return None
-            
+
         try:
             voice_name = voice or self._tts_voice
-            
+
             # Generate TTS audio using Gemini TTS API
             response = self._client.models.generate_content(
                 model="gemini-2.5-flash-preview-tts",
@@ -516,102 +537,112 @@ class LLMClient:
                             )
                         )
                     ),
-                )
+                ),
             )
-            
+
             # Extract audio data
             if not (response.candidates and response.candidates[0].content.parts):
                 print("Warning: No audio data in TTS response")
                 return None
-                
+
             audio_data = response.candidates[0].content.parts[0].inline_data.data
             if not audio_data:
                 print("Warning: Empty audio data in TTS response")
                 return None
-                
+
             # Generate filename and save
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"response_{timestamp}.{self._tts_audio_format}"
             audio_dir = self._ensure_audio_directory()
             file_path = os.path.join(audio_dir, filename)
-            
+
             # Save as WAV file
             self._save_wav_file(file_path, audio_data)
-            
+
             # Optionally run cleanup
             if self._tts_cleanup_days > 0:
                 self.cleanup_old_audio_files()
-            
+
             print(f"TTS audio generated: {file_path}")
             return file_path
-            
+
         except Exception as e:
             print(f"Warning: TTS generation failed: {e}")
             return None
 
-    def _save_wav_file(self, file_path: str, audio_data: bytes, channels: int = 1, 
-                      rate: int = 24000, sample_width: int = 2) -> None:
+    def _save_wav_file(
+        self,
+        file_path: str,
+        audio_data: bytes,
+        channels: int = 1,
+        rate: int = 24000,
+        sample_width: int = 2,
+    ) -> None:
         """Save audio data as WAV file."""
         with wave.open(file_path, "wb") as wf:
             wf.setnchannels(channels)
-            wf.setsampwidth(sample_width) 
+            wf.setsampwidth(sample_width)
             wf.setframerate(rate)
             wf.writeframes(audio_data)
 
     @staticmethod
-    def cleanup_audio_files_static(cleanup_days: int = 7, project_root: Optional[str] = None) -> int:
+    def cleanup_audio_files_static(
+        cleanup_days: int = 7, project_root: Optional[str] = None
+    ) -> int:
         """Static method to clean up old audio files without initializing full client.
-        
+
         Args:
             cleanup_days: Files older than this many days will be removed
             project_root: Project root directory (auto-detected if None)
-            
+
         Returns:
             Number of files cleaned up
         """
         if cleanup_days <= 0:
             return 0
-            
+
         if project_root is None:
             project_root = os.path.dirname(os.path.abspath(__file__))
-            
+
         audio_dir = os.path.join(project_root, "audio")
         if not os.path.exists(audio_dir):
             return 0
-            
+
         cutoff_date = datetime.now() - timedelta(days=cleanup_days)
         cleanup_count = 0
-        
+
         try:
             for filename in os.listdir(audio_dir):
                 if not filename.endswith(".wav"):
                     continue
-                    
+
                 file_path = os.path.join(audio_dir, filename)
                 if not os.path.isfile(file_path):
                     continue
-                    
+
                 # Check file modification time
                 file_mtime = datetime.fromtimestamp(os.path.getmtime(file_path))
                 if file_mtime < cutoff_date:
                     os.remove(file_path)
                     cleanup_count += 1
-                    
+
         except Exception as e:
             print(f"Warning: Audio cleanup failed: {e}")
-            
+
         if cleanup_count > 0:
             print(f"Cleaned up {cleanup_count} old audio files")
-            
+
         return cleanup_count
 
     def cleanup_old_audio_files(self) -> int:
         """Remove audio files older than configured cleanup days.
-        
+
         Returns:
             Number of files cleaned up
         """
-        return self.cleanup_audio_files_static(self._tts_cleanup_days, self._project_root)
+        return self.cleanup_audio_files_static(
+            self._tts_cleanup_days, self._project_root
+        )
 
     def _ensure_audio_directory(self) -> str:
         """Ensure audio directory exists and return path."""
@@ -620,11 +651,11 @@ class LLMClient:
             os.makedirs(audio_dir, exist_ok=True)
         return audio_dir
 
-    @property 
+    @property
     def tts_enabled(self) -> bool:
         """Get TTS enabled status."""
         return self._tts_enabled
-    
+
     @property
     def tts_voice(self) -> str:
         """Get configured TTS voice."""
