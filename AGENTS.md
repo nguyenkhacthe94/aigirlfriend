@@ -6,15 +6,16 @@ AI-powered VTuber controller that uses LLM emotion detection to drive Live2D ava
 
 ## Project Overview
 
-This project connects an AI language model with VTube Studio to create an emotion-responsive Live2D avatar. The system uses a unified LLM approach where conversational responses and facial expressions are generated simultaneously through direct google-generativeai function calling.
+This project connects an AI language model with VTube Studio to create an emotion-responsive Live2D avatar. The system uses a unified LLM approach where conversational responses, facial expressions, and text-to-speech audio are generated simultaneously through direct google-generativeai function calling.
 
 **Key Components:**
 
 - `vts_client.py` - VTube Studio WebSocket API client (authentication, parameter injection)
-- `llm_client.py` - Unified LLM client with function calling for expression control
+- `llm_client.py` - Unified LLM client with function calling for expression control and TTS generation
 - `model_control/vts_expressions.py` - Expression functions called directly by LLM
 - `prompts/system.md` - Single unified system prompt for AI personality and expression guidance
 - `main.py` - Main orchestration loop
+- `audio/` - Generated TTS audio files storage
 - `scripts/` - Development-only debugging, helper, and test scripts (never use in production)
 <!-- PROJECT_OVERVIEW:END -->
 
@@ -34,6 +35,11 @@ python scripts/test/test_system_prompt.py
 
 # Test function calling integration
 python scripts/test/test_function_calling.py
+
+# Test TTS generation and integration
+python scripts/debug/debug_tts_generation.py
+python scripts/debug/debug_tts_integration.py
+python scripts/debug/debug_audio_cleanup.py
 
 # Comprehensive validation
 python scripts/test/test_comprehensive_validation.py
@@ -493,9 +499,40 @@ export GOOGLE_API_KEY="your-google-api-key"      # for Gemini
 export LLM_TIMEOUT="30"                          # request timeout
 export LLM_TEMPERATURE="0.75"                    # response creativity
 
+# Text-to-Speech Configuration
+export TTS_ENABLED="true"                        # enable/disable TTS (true/false)
+export TTS_VOICE="Kore"                          # voice name (see available voices below)
+export TTS_CLEANUP_DAYS="7"                      # auto-cleanup threshold (0=disabled)
+export TTS_AUDIO_FORMAT="wav"                    # audio format (currently only wav)
+
 # VTube Studio
 export VTS_URL="ws://localhost:8001"             # VTS WebSocket URL
 ```
+
+### TTS Voice Options
+
+The following voices are available for text-to-speech generation:
+
+**Bright/Upbeat**: Zephyr, Puck, Autonoe, Laomedeia, Sadachbia
+**Firm/Clear**: Kore, Orus, Iapetus, Erinome, Alnilam  
+**Informative**: Charon, Rasalgethi
+**Excitable**: Fenrir
+**Youthful**: Leda
+**Breezy/Easy-going**: Aoede, Callirrhoe, Umbriel
+**Breathy**: Enceladus
+**Smooth**: Algieba, Despina
+**Gravelly**: Algenib
+**Soft**: Achernar
+**Even**: Schedar
+**Mature**: Gacrux
+**Forward**: Pulcherrima
+**Friendly**: Achird
+**Casual**: Zubenelgenubi
+**Gentle**: Vindemiatrix
+**Knowledgeable**: Sadaltager
+**Warm**: Sulafat
+
+Default voice is **Kore** (Firm, clear delivery).
 
 ### Token Persistence
 
@@ -572,7 +609,7 @@ See `requirements.txt`:
 - `websockets` - VTS WebSocket client
 - `requests` - HTTP client for API calls
 - `asyncio` - Built-in async support
-- `google-generativeai` - Google's native Gemini SDK
+- `google-generativeai` - Google's native Gemini SDK (includes TTS)
 
 ### Required Services
 
@@ -618,6 +655,38 @@ lsof -i :8001
 - Verify parameter name in VTube Studio API
 - Check Live2D model supports the parameter
 - Test with VTube Studio's parameter panel first
+
+### TTS Issues
+
+**No Audio Generated:**
+
+```bash
+# Check TTS is enabled
+echo $TTS_ENABLED  # should be "true"
+
+# Verify API key has TTS permissions
+python scripts/debug/debug_tts_generation.py
+```
+
+**TTS Generation Slow:**
+
+- Check network connection to Google TTS API
+- Monitor API rate limits and quota
+- Verify TTS model availability: `gemini-2.5-flash-preview-tts`
+
+**Audio Files Not Saved:**
+
+```bash
+# Check audio directory exists and is writable
+ls -la audio/
+chmod 755 audio/  # Fix permissions if needed
+```
+
+**Voice Not Available:**
+
+- Use default voice names from documentation
+- Test with `TTS_VOICE="Kore"` (default)
+- Check voice spelling (case-sensitive)
 <!-- TROUBLESHOOTING:END -->
 
 <!-- OPENSPEC:START -->

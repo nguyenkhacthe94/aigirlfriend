@@ -56,6 +56,23 @@ async def main():
                     else:
                         print("😐 Expression: (neutral/none)")
 
+                    # Display audio file if generated
+                    if response.get("audio_file"):
+                        import os
+
+                        audio_file = response["audio_file"]
+                        if os.path.exists(audio_file):
+                            audio_size = os.path.getsize(audio_file)
+                            print(
+                                f"🔊 Audio: {os.path.basename(audio_file)} ({audio_size} bytes)"
+                            )
+                        else:
+                            print(
+                                f"🔇 Audio: {os.path.basename(audio_file)} (file missing)"
+                            )
+                    else:
+                        print("🔇 Audio: (disabled or failed)")
+
                     # Performance feedback
                     if response_time < 500:
                         print(f"⚡ Response time: {response_time:.0f}ms (Good)")
